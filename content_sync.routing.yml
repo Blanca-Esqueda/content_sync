@@ -1,0 +1,48 @@
+content.sync:
+  path: '/admin/config/development/content'
+  defaults:
+    _title: 'Synchronize'
+    _form: '\Drupal\content_sync\Form\ContentSync'
+  requirements:
+    _permission: 'synchronize content'
+
+content.import_single:
+  path: '/admin/config/development/content/import/single'
+  defaults:
+    _title: 'Single Import'
+    _form: '\Drupal\content_sync\Form\ContentSingleImportForm'
+  requirements:
+    _permission: 'import content'
+
+content.import_full:
+  path: '/admin/config/development/content/import/full'
+  defaults:
+    _title: 'Import Archives'
+    _form: '\Drupal\content_sync\Form\ContentImportForm'
+  requirements:
+    _permission: 'import content'
+
+content.export_full:
+  path: '/admin/config/development/content/export/full'
+  defaults:
+    _title: 'Export Archives'
+    _form: '\Drupal\content_sync\Form\ContentExportForm'
+  requirements:
+    _permission: 'export content'
+
+content.export_download:
+  path: '/admin/config/development/content/export/download'
+  defaults:
+    _controller: '\Drupal\content_sync\Controller\ContentController::downloadExport'
+  requirements:
+    _permission: 'export content'
+
+content.export_single:
+  path: '/admin/config/development/content/export/single'
+  defaults:
+    _title: 'Single Export'
+    _form: '\Drupal\content_sync\Form\ContentSingleExportForm'
+    config_type: NULL
+    config_name: NULL
+  requirements:
+    _permission: 'export content'

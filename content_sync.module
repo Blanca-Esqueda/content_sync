@@ -1,0 +1,78 @@
+<?php
+/**
+ * @file
+ * Allows site administrators to modify content.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function content_sync_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.content':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('The Content Synchronization module provides a user interface for importing and exporting content changes between installations of your website in different environments. Content is stored in YAML format. For more information, see the <a href=":url">online documentation for the Content Synchronization module</a>.', [':url' => 'https://www.drupal.org/project/content_sync']) . '</p>';
+      $output .= '<h3>' . t('Uses') . '</h3>';
+      $output .= '<dl>';
+      $output .= '<dt>' . t('Exporting the full content') . '</dt>';
+      $output .= '<dd>' . t('You can create and download an archive consisting of all your site\'s content exported as <em>*.yml</em> files on the <a href=":url">Export</a> page.', [':url' => \Drupal::url('content.export_full')]) . '</dd>';
+      $output .= '<dt>' . t('Importing a full content') . '</dt>';
+      $output .= '<dd>' . t('You can upload a full site content from an archive file on the <a href=":url">Import</a> page. When importing data from a different environment, the site and import files must have matching configuration values for UUID in the <em>system.site</em> configuration item. That means that your other environments should initially be set up as clones of the target site. Migrations are not supported.', [':url' => \Drupal::url('content.import_full')]) . '</dd>';
+      $output .= '<dt>' . t('Exporting a single content item') . '</dt>';
+      $output .= '<dd>' . t('You can export a single content item by selecting a <em>Content type</em> and <em>Content name</em> on the <a href=":single-export">Single export</a> page. The content and its corresponding <em>*.yml file name</em> are then displayed on the page for you to copy.', [':single-export' => \Drupal::url('content.export_single')]) . '</dd>';
+      $output .= '<dt>' . t('Importing a single content item') . '</dt>';
+      $output .= '<dd>' . t('You can import a single content item by pasting it in YAML format into the form on the <a href=":single-import">Single import</a> page.', [':single-import' => \Drupal::url('content.import_single')]) . '</dd>';
+      $output .= '</dl>';
+      return $output;
+
+    case 'content.export_full':
+      $output = '';
+      $output .= '<p>' . t('Export and download the full content of this site as a gzipped tar file.') . '</p>';
+      return $output;
+
+    case 'content.import_full':
+      $output = '';
+      $output .= '<p>' . t('Upload a full site content archive to the content sync directory to be imported.') . '</p>';
+      return $output;
+
+    case 'content.export_single':
+      $output = '';
+      $output .= '<p>' . t('Choose a content item to display its YAML structure.') . '</p>';
+      return $output;
+
+    case 'content.import_single':
+      $output = '';
+      $output .= '<p>' . t('Import a single content item by pasting its YAML structure into the text field.') . '</p>';
+      return $output;
+
+    case 'content.import_template':
+      $output = '';
+      $output .= '<p>' . t('Choose a content item to display its YAML structure.') . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_file_download().
+ */
+function content_file_download($uri) {
+  $scheme = file_uri_scheme($uri);
+  $target = file_uri_target($uri);
+  if ($scheme == 'temporary' && $target == 'content.tar.gz') {
+    if (\Drupal::currentUser()->hasPermission('export content')) {
+      $request = \Drupal::request();
+      $date = DateTime::createFromFormat('U', $request->server->get('REQUEST_TIME'));
+      $date_string = $date->format('Y-m-d-H-i');
+      $hostname = str_replace('.', '-', $request->getHttpHost());
+      $filename = 'content' . '-' . $hostname . '-' . $date_string . '.tar.gz';
+      $disposition = 'attachment; filename="' . $filename . '"';
+      return [
+        'Content-disposition' => $disposition,
+      ];
+    }
+    return -1;
+  }
+}

@@ -1,0 +1,6 @@
+name: 'Content Sync'
+type: module
+description: 'Allows to import/export content using YAML files'
+package: Custom
+core: 8.x
+configure: content.sync
