@@ -5,13 +5,43 @@
  */
 
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Entity\ContentEntityType;
+use Drupal\Core\Url;
 
+
+$GLOBALS['content_directories'];
 /**
  * Implements hook_help().
  */
 function content_sync_help($route_name, RouteMatchInterface $route_match) {
+
+  // Get path from route match.
+  $path = preg_replace('/^' . preg_quote(base_path(), '/') . '/', '/', Url::fromRouteMatch($route_match)->setAbsolute(FALSE)->toString());
+  if (!in_array($route_name, ['system.modules_list']) && strpos($route_name, 'help.page.content_sync') === FALSE && strpos($path, '/content') === FALSE) {
+    return NULL;
+  }
+
+  /** @var \Drupal\content_sync\ContentSyncHelpManagerInterface $help_manager */
+  $help_manager = \Drupal::service('content_sync.help_manager');
+  if ($route_name == 'help.page.content_sync') {
+    $build = $help_manager->buildIndex();
+  }
+  else {
+    $build = $help_manager->buildHelp($route_name, $route_match);
+  }
+
+  if ($build) {
+    $renderer = \Drupal::service('renderer');
+    $config = \Drupal::config('content_sync.settings');
+    $renderer->addCacheableDependency($build, $config);
+    return $build;
+  }
+  else {
+    return NULL;
+  }
+
   switch ($route_name) {
-    case 'help.page.content':
+    case 'help.page.content_sync':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('The Content Synchronization module provides a user interface for importing and exporting content changes between installations of your website in different environments. Content is stored in YAML format. For more information, see the <a href=":url">online documentation for the Content Synchronization module</a>.', [':url' => 'https://www.drupal.org/project/content_sync']) . '</p>';
@@ -20,13 +50,20 @@ function content_sync_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<dt>' . t('Exporting the full content') . '</dt>';
       $output .= '<dd>' . t('You can create and download an archive consisting of all your site\'s content exported as <em>*.yml</em> files on the <a href=":url">Export</a> page.', [':url' => \Drupal::url('content.export_full')]) . '</dd>';
       $output .= '<dt>' . t('Importing a full content') . '</dt>';
-      $output .= '<dd>' . t('You can upload a full site content from an archive file on the <a href=":url">Import</a> page. When importing data from a different environment, the site and import files must have matching configuration values for UUID in the <em>system.site</em> configuration item. That means that your other environments should initially be set up as clones of the target site. Migrations are not supported.', [':url' => \Drupal::url('content.import_full')]) . '</dd>';
+      $output .= '<dd>' . t('You can upload a full site content from an archive file on the <a href=":url">Import</a> page. When importing data from a different environment, the site and import files must have matching configuration values for UUID in the <em>system.site</em> configuration item. That means that your other environments should initially be set up as clones of the target site.', [':url' => \Drupal::url('content.import_full')]) . '</dd>';
       $output .= '<dt>' . t('Exporting a single content item') . '</dt>';
       $output .= '<dd>' . t('You can export a single content item by selecting a <em>Content type</em> and <em>Content name</em> on the <a href=":single-export">Single export</a> page. The content and its corresponding <em>*.yml file name</em> are then displayed on the page for you to copy.', [':single-export' => \Drupal::url('content.export_single')]) . '</dd>';
       $output .= '<dt>' . t('Importing a single content item') . '</dt>';
       $output .= '<dd>' . t('You can import a single content item by pasting it in YAML format into the form on the <a href=":single-import">Single import</a> page.', [':single-import' => \Drupal::url('content.import_single')]) . '</dd>';
+      $output .= '<dt>' . t('Synchronizing content') . '</dt>';
+      $output .= '<dd>' . t('You can review differences between the active content and an imported content archive on the <a href=":synchronize">Synchronize</a> page to ensure that the changes are as expected, before finalizing the import. The <a href=":synchronize">Synchronize</a>Synchronize</a> page also shows content items that would be added or removed.', [':synchronize' => \Drupal::url('content.sync')]) . '</dd>';
+      $output .= '<dt>' . t('Content logs') . '</dt>';
+      $output .= '<dd>' . t('You can view a chronological list of recorded events containing errors, warnings and operational information of the content import, export and synchronization on the <a href=":content-logs">Logs</a> page.', [':content-logs' => \Drupal::url('content.overview')]) . '</dd>';
+      $output .= '<dt>' . t('Content synchronization settings') . '</dt>';
+      $output .= '<dd>' . t('You can set specific settings for the content synchronization behaviour as ignore the UUID Site validation and more on the <a href=":settings">Settings</a> page.', [':settings' => \Drupal::url('content.settings')]) . '</dd>';
       $output .= '</dl>';
-      return $output;
+
+      //return $output;
 
     case 'content.export_full':
       $output = '';
@@ -48,12 +85,45 @@ function content_sync_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<p>' . t('Import a single content item by pasting its YAML structure into the text field.') . '</p>';
       return $output;
 
-    case 'content.import_template':
+    case 'content.sync':
       $output = '';
-      $output .= '<p>' . t('Choose a content item to display its YAML structure.') . '</p>';
+      $output .= '<p>' . t('Compare the content uploaded to your content sync directory with the active content before completing the import.') . '</p>';
+      return $output;
+
+    case 'content.settings':
+      $output = '';
+      $output .= '<p>' . t('Set specific settings for the content synchronization behaviour.') . '</p>';
+      return $output;
+
+    case 'content.overview':
+      $output = '';
+      $output .= '<p>' . t('chronological list of recorded events containing errors, warnings and operational information of the content import, export and synchronization.') . '</p>';
       return $output;
   }
 }
+
+
+/**
+ * Implements hook_theme().
+ */
+function content_sync_theme() {
+  $info = [
+    'content_sync_help' => [
+      'variables' => ['info' => []],
+    ],
+    'content_sync_message' => [
+      'render element' => 'element',
+    ],
+  ];
+
+  // Since any rendering of a content_sync is going to require 'content_sync.theme.inc'
+  // we are going to just add it to every template.
+  foreach ($info as &$template) {
+    $template['file'] = 'includes/content_sync.theme.inc';
+  }
+  return $info;
+}
+
 
 /**
  * Implements hook_file_download().
@@ -74,5 +144,108 @@ function content_file_download($uri) {
       ];
     }
     return -1;
+  }
+}
+
+
+/* From /docroot/core/includes/bootstrap.inc
+find out how to declare a global and include it ???
+Drupal core provides the
+CONFIG_SYNC_DIRECTORY constant to access the sync directory.
+
+$content_directories;
+Where to declare constant variables
+  //const CONFIG_ACTIVE_DIRECTORY = 'active';
+  //const CONFIG_SYNC_DIRECTORY = 'sync';
+  //const CONFIG_STAGING_DIRECTORY = 'staging';
+*/
+
+/**
+ * Returns the path of a content directory.
+ *
+ * Content directories are configured using $content_directories in
+ * settings.php
+ *
+ * @param string $type
+ *   The type of content directory to return.
+ *
+ * @return string
+ *   The content directory path.
+ *
+ * @throws \Exception
+ */
+function content_sync_get_content_directory($type) {
+  global $content_directories;
+
+  // @todo Remove fallback in Drupal 9. https://www.drupal.org/node/2574943
+  /*if ($type == CONTENT_SYNC_DIRECTORY &&
+      !isset($content_directories[CONTENT_SYNC_DIRECTORY])
+      && isset($content_directories[CONTENT_STAGING_DIRECTORY])) {
+    $type = CONTENT_STAGING_DIRECTORY;
+  }*/
+  if ($type == 'sync' &&
+    !isset($content_directories['sync'])
+    && isset($content_directories['staging'])) {
+    $type = 'staging';
+  }
+
+  if (!empty($content_directories[$type])) {
+    return $content_directories[$type];
+  }
+  // @todo https://www.drupal.org/node/2696103 Throw a more specific exception.
+  throw new \Exception("The content directory type '$type' does not exist");
+}
+
+/**
+ * hook_entity_update
+ * Keep the content snapshot table synced
+ */
+function content_sync_entity_update(Drupal\Core\Entity\EntityInterface $entity){
+  // Get submitted values
+  $entity_type = $entity->getEntityTypeId();
+  $entity_bundle = $entity->Bundle();
+  $entity_id = $entity->id();
+
+  //Validate that it is a Content Entity
+  $entityTypeManager = \Drupal::entityTypeManager();
+  $instances = $entityTypeManager->getDefinitions();
+  if ( isset($instances[$entity_type]) && $instances[$entity_type] instanceof ContentEntityType ) {
+    // Store the data for diff
+    module_load_include('inc', 'content_sync', 'content_sync.batch');
+    $new_entity = _content_sync_db_to_entity($entity_type,$entity_bundle,$entity_id);
+    // Create the name
+    $name = $entity_type . "." . $entity_bundle . "." . $new_entity['values'][0]['uuid'][0]['value'];
+
+    //Insert/Update Data
+    $activeStorage = new Drupal\Core\Config\DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+    $activeStorage->write($name, $new_entity);
+  }
+}
+/**
+ * hook_entity_insert
+ * Keep the content snapshot table synced
+ */
+function content_sync_entity_insert(Drupal\Core\Entity\EntityInterface $entity){
+  content_sync_entity_update($entity);
+}
+/**
+ * hook_entity_delete
+ * Keep the content snapshot table synced
+ */
+function content_sync_entity_delete(Drupal\Core\Entity\EntityInterface $entity){
+  // Get submitted values
+  $entity_type = $entity->getEntityTypeId();
+  $entity_bundle = $entity->Bundle();
+  $entity_uuid = $entity->uuid();
+
+  //Validate that it is a Content Entity
+  $entityTypeManager = \Drupal::entityTypeManager();
+  $instances = $entityTypeManager->getDefinitions();
+  if ( isset($instances[$entity_type]) && $instances[$entity_type] instanceof ContentEntityType ) {
+    // Update the data for diff
+    $name = $entity_type . "." . $entity_bundle . "." . $entity_uuid;
+    //Delete Data
+    $activeStorage = new Drupal\Core\Config\DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+    $activeStorage->delete($name);
   }
 }
