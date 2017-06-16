@@ -41,6 +41,8 @@ class ContentExportForm extends FormBase {
     $entityBundles = \Drupal::service("entity_type.bundle.info");
     //Set batch operations by entity type/bundle
     $operations = [];
+    $operations[] = ['generateSiteUUIDFile', [0=>0]];
+
     $entity_type_definitions = $entityTypeManager->getDefinitions();
     foreach ($entity_type_definitions as $entity_type => $definition) {
       if ($definition instanceof ContentEntityType) {
@@ -75,8 +77,6 @@ class ContentExportForm extends FormBase {
     if(empty($operations)){
       $operations[] = ['processContentExportFiles', [0=>0] ];
     }
-//kint($operations);
- //  exit;
     //Set Batch
     $batch = [
       'operations' => $operations,
