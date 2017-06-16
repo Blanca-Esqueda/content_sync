@@ -50,6 +50,7 @@ class ContentSingleImportForm extends FormBase {
     }
     catch (\Exception $e) {
       $form_state->setErrorByName('import', $this->t('The import failed with the following message: %message', ['%message' => $e->getMessage()]));
+      $this->logger('content_sync')->error('The import failed with the following message: %message', ['%message' => $e->getMessage(), 'link' => 'Import Single']);
     }
   }
 
