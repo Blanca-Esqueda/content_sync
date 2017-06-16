@@ -7,3 +7,6 @@ export content:
 import content:
   title: 'Import content'
   restrict access: true
+logs content:
+  title: 'Logs content'
+  restrict access: true
