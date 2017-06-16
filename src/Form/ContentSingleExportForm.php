@@ -177,7 +177,7 @@ class ContentSingleExportForm extends FormBase {
     module_load_include('inc', 'content_sync', 'content_sync.batch');
     $entity = _content_sync_db_to_entity($entity_type,$entity_bundle,$entity_id);
     $output = Yaml::encode($entity);
-    $name = $entity_type . "." . $entity_bundle . "." . $entity['values']['uuid'][0]['value'];
+    $name = $entity_type . "." . $entity_bundle . "." . $entity['values'][0]['uuid'][0]['value'];
 
     // Return form values
     $form['export']['#value'] = $output;
