@@ -10,7 +10,6 @@ use Drupal\Core\Form\FormStateInterface;
  * Defines the content import form.
  */
 class ContentImportForm extends FormBase {
-
   /**
    * {@inheritdoc}
    */
@@ -22,11 +21,10 @@ class ContentImportForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    //TODO -- Find out how to declare the content folder  -- task for sync.
-    $app_root = \Drupal::root();
-    $directory = $app_root.'/../content/sync';
+    $directory = content_sync_get_content_directory('sync');
     $directory_is_writable = is_writable($directory);
     if (!$directory_is_writable) {
+      $this->logger('content_sync')->error('The directory %directory is not writable.', ['%directory' => $directory, 'link' => 'Import Archive']);
       drupal_set_message($this->t('The directory %directory is not writable.', ['%directory' => $directory]), 'error');
     }
 
@@ -64,11 +62,8 @@ class ContentImportForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     if ($path = $form_state->getValue('import_tarball')) {
-      //TODO -- Find out how to declare the content folder  -- task for sync.
-      $app_root = \Drupal::root();
-      $directory = $app_root.'/../content/sync';
+      $directory = content_sync_get_content_directory('sync');
       emptyDirectory($directory);
-
       try {
         $archiver = new ArchiveTar($path, 'gz');
         $files = [];
@@ -77,53 +72,20 @@ class ContentImportForm extends FormBase {
         }
         $archiver->extractList($files, $directory);
         drupal_set_message($this->t('Your content files were successfully uploaded'));
-        //Set Batch to process the files from the content directory.
-        //Get the files to be processed
-        $files = scan_dir($directory);
-        //Flat the files array
-        array_walk_recursive($files, function($a) use (&$data) { $data[] = $a; });
-        $operations = [];
-        $operations[] = ['processContentDirectoryBatch', [$data]];
-        $operations[] = ['processContentDirectoryBatch', [$data]];
-        $batch = [
-          'operations' => $operations,
-          'finished' => 'finishContentBatch',
-          'title' => $this->t('Importing content'),
-          'init_message' => $this->t('Starting content import.'),
-          'progress_message' => $this->t('Completed @current step of @total.'),
-          'error_message' => $this->t('Content import has encountered an error.'),
-          'file' => drupal_get_path('module', 'content_sync') . '/content_sync.batch.inc',
-        ];
-        batch_set($batch);
-
+        $this->logger('content_sync')->notice('Your content files were successfully uploaded', ['link' => 'Import Archive']);
+        $form_state->setRedirect('content.sync');
       }
       catch (\Exception $e) {
         drupal_set_message($this->t('Could not extract the contents of the tar file. The error message is <em>@message</em>', ['@message' => $e->getMessage()]), 'error');
+        $this->logger('content_sync')->error('Could not extract the contents of the tar file. The error message is <em>@message</em>', ['@message' => $e->getMessage(), 'link' => 'Import Archive']);
       }
+      drupal_flush_all_caches();
       unlink($path);
     }
   }
 }
 
 /*
- * Help to count the number of files in the directory.
- */
-function scan_dir($dir) { 
-  $result = array(); 
-  $cdir = scandir($dir); 
-  foreach ($cdir as $key => $value){ 
-    if (!in_array($value,array(".",".."))){ 
-      if (is_dir($dir . DIRECTORY_SEPARATOR . $value)) { 
-        $result[$value] = scan_dir($dir . DIRECTORY_SEPARATOR . $value); 
-      } else { 
-        $result[] = $dir."/".$value; 
-      } 
-    } 
-  } 
-  return $result; 
-} 
-
-/* 
  * Help to empty a directory
  */
 function emptyDirectory($dirname,$self_delete=false) {
@@ -136,12 +98,12 @@ function emptyDirectory($dirname,$self_delete=false) {
          if (!is_dir($dirname."/".$file))
             @unlink($dirname."/".$file);
          else
-            emptyDirectory($dirname.'/'.$file,true);    
+            emptyDirectory($dirname.'/'.$file,true);
       }
    }
    closedir($dir_handle);
    if ($self_delete){
         @rmdir($dirname);
-   }   
+   }
    return true;
 }
