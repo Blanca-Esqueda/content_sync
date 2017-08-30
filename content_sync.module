@@ -203,7 +203,7 @@ function content_sync_get_content_directory($type) {
 function content_sync_entity_update(Drupal\Core\Entity\EntityInterface $entity){
   // Get submitted values
   $entity_type = $entity->getEntityTypeId();
-  $entity_bundle = $entity->Bundle();
+  $entity_bundle = $entity->bundle();
   $entity_id = $entity->id();
 
   //Validate that it is a Content Entity
@@ -212,13 +212,17 @@ function content_sync_entity_update(Drupal\Core\Entity\EntityInterface $entity){
   if ( isset($instances[$entity_type]) && $instances[$entity_type] instanceof ContentEntityType ) {
     // Store the data for diff
     module_load_include('inc', 'content_sync', 'content_sync.batch');
-    $new_entity = _content_sync_db_to_entity($entity_type,$entity_bundle,$entity_id);
+    $entity = \Drupal::entityTypeManager()->getStorage($entity_type)
+      ->load($entity_id);
+    // Generate the YAML file.
+    $serializer_context = [];
+    $exported_entity = \Drupal::service('content_sync.exporter')->exportEntity($entity, $serializer_context);
     // Create the name
-    $name = $entity_type . "." . $entity_bundle . "." . $new_entity['values'][0]['uuid'][0]['value'];
+    $name = $entity_type . "." . $entity_bundle . "." . $entity->uuid();
 
     //Insert/Update Data
     $activeStorage = new Drupal\Core\Config\DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-    $activeStorage->write($name, $new_entity);
+    $activeStorage->write($name, \Drupal\Core\Serialization\Yaml::decode($exported_entity));
   }
 }
 /**

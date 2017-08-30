@@ -537,13 +537,17 @@ function processContentSyncSnapshot($files, &$context) {
   }
   else {
     // Store the data for diff
-    $entity = _content_sync_db_to_entity($entity_type,$entity_bundle,$entity_id);
+    $entity = $entityTypeManager->getStorage($entity_type)
+      ->load($entity_id);
+    // Generate the YAML file.
+    $serializer_context = [];
+    $exported_entity = \Drupal::service('content_sync.exporter')->exportEntity($entity, $serializer_context);
     // Create the name
-    $name = $entity_type . "." . $entity_bundle . "." . $entity['values'][0]['uuid'][0]['value'];
+    $name = $entity_type . "." . $entity->bundle() . "." . $entity->uuid();
 
     // Insert Data
     $activeStorage = new Drupal\Core\Config\DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-    $activeStorage->write($name, $entity);
+    $activeStorage->write($name, Yaml::decode($exported_entity));
     $context['message'] = $name;
     $context['results'][] = $name;
   }

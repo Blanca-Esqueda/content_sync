@@ -63,6 +63,16 @@ content.export_single:
   requirements:
     _permission: 'export content'
 
+content.export_multiple_confirm:
+  path: '/admin/config/development/content/export/confirm'
+  defaults:
+    _form: '\Drupal\content_sync\Form\ContentExportMultiple'
+    _title: 'Content export'
+  requirements:
+    _permission: 'export content'
+  options:
+    _admin_route: TRUE
+
 content.overview:
   path: '/admin/config/development/content/logs'
   defaults:

@@ -2,12 +2,11 @@
 
 namespace Drupal\content_sync\Form;
 
+use Drupal\content_sync\Exporter\ContentExporterInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfo;
-use Drupal\Core\Entity\EntityFieldManager;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Serialization\Yaml;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Entity\ContentEntityType;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -34,28 +33,23 @@ class ContentSingleExportForm extends FormBase {
   protected $entityBundleManager;
 
   /**
-   * The entity field manager.
-   *
-   * @var \Drupal\Core\Entity\EntityFieldManager
+   * @var \Drupal\content_sync\Exporter\ContentExporterInterface
    */
-  protected $entityFieldManager;
+  protected $contentExporter;
 
   /**
-   * Constructs a new ContentSingleImportForm.
+   * Constructs a new ContentSingleExportForm.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   entity type manager
    *
    * @param \Drupal\Core\Entity\EntityTypeBundleInfo $entity_bundle_manager
-   *   entity bundle manager
    *
-   * @param \Drupal\Core\Entity\EntityFieldManager $entity_field_manager
-   *   entity field manager
+   * @param \Drupal\content_sync\Exporter\ContentExporterInterface $content_exporter
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, EntityTypeBundleInfo $entity_bundle_manager, EntityFieldManager $entity_field_manager) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, EntityTypeBundleInfo $entity_bundle_manager, ContentExporterInterface $content_exporter) {
     $this->entityTypeManager = $entity_type_manager;
     $this->entityBundleManager = $entity_bundle_manager;
-    $this->entityFieldManager = $entity_field_manager;
+    $this->contentExporter = $content_exporter;
   }
 
   /**
@@ -65,7 +59,7 @@ class ContentSingleExportForm extends FormBase {
     return new static(
       $container->get('entity_type.manager'),
       $container->get('entity_type.bundle.info'),
-      $container->get('entity_field.manager')
+      $container->get('content_sync.exporter')
     );
   }
 
@@ -170,17 +164,21 @@ class ContentSingleExportForm extends FormBase {
   public function updateExport($form, FormStateInterface $form_state) {
     // Get submitted values
     $entity_type = $form_state->getValue('content_type');
-    $entity_bundle = $form_state->getValue('content_name');
     $entity_id = $form_state->getValue('content_entity');
 
     // DB entity to YAML
-    module_load_include('inc', 'content_sync', 'content_sync.batch');
-    $entity = _content_sync_db_to_entity($entity_type,$entity_bundle,$entity_id);
-    $output = Yaml::encode($entity);
-    $name = $entity_type . "." . $entity_bundle . "." . $entity['values'][0]['uuid'][0]['value'];
+    $entity = $this->entityTypeManager->getStorage($entity_type)
+      ->load($entity_id);
+    // Generate the YAML file.
+    $serializer_context = [];
+    $language = \Drupal::languageManager()->getCurrentLanguage()->getId();
+    $entity = $entity->getTranslation($language);
+    $exported_entity = $this->contentExporter->exportEntity($entity, $serializer_context);
+    // Create the name
+    $name = $entity_type . "." . $entity->bundle() . "." . $entity->uuid();
 
     // Return form values
-    $form['export']['#value'] = $output;
+    $form['export']['#value'] = $exported_entity;
     $form['export']['#description'] = $this->t('Filename: %name', ['%name' => $name . '.yml']);
     return $form['export'];
   }

@@ -2,14 +2,45 @@
 
 namespace Drupal\content_sync\Form;
 
+use Drupal\content_sync\Exporter\ContentExporterInterface;
+use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Entity\ContentEntityType;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Defines the content export form.
  */
 class ContentExportForm extends FormBase {
+
+  use ContentExportTrait;
+
+  /**
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * @var \Drupal\content_sync\Exporter\ContentExporterInterface
+   */
+  protected $contentExporter;
+
+  /**
+   * ContentExportForm constructor.
+   */
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter) {
+    $this->entityTypeManager = $entity_type_manager;
+    $this->contentExporter = $content_exporter;
+  }
+
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('entity_type.manager'),
+      $container->get('content_sync.exporter')
+    );
+  }
+
 
   /**
    * {@inheritdoc}
@@ -34,59 +65,51 @@ class ContentExportForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Delete the content tar file in case an older version exist.
-    file_unmanaged_delete(file_directory_temp() . '/content.tar.gz');
+    file_unmanaged_delete($this->getTempFile());
 
-    //Entity types manager
-    $entityTypeManager = \Drupal::entityTypeManager();
-    $entityBundles = \Drupal::service("entity_type.bundle.info");
     //Set batch operations by entity type/bundle
-    $operations = [];
-    $operations[] = ['generateSiteUUIDFile', [0=>0]];
-
-    $entity_type_definitions = $entityTypeManager->getDefinitions();
+    $entities_list = [];
+    $entity_type_definitions = $this->entityTypeManager->getDefinitions();
     foreach ($entity_type_definitions as $entity_type => $definition) {
-      if ($definition instanceof ContentEntityType) {
-        $entity_bundles = $entityBundles->getBundleInfo($entity_type);
-        foreach ($entity_bundles as $entity_bundle => $bundle) {
-          //Get BundleKey
-          $bundleKey = \Drupal::entityTypeManager()->getStorage($entity_type)->getEntityType()->getKey('bundle');
-          if (!empty($bundleKey)) {
-            // Load entities by their property values.
-            $entities = \Drupal::entityTypeManager()
-              ->getStorage($entity_type)
-              ->loadByProperties(array($bundleKey => $entity_bundle));
-          }else{
-            $entities = \Drupal::entityTypeManager()
-              ->getStorage($entity_type)
-              ->loadMultiple();
-          }
-          $entity = [];
-          foreach($entities as $entity_id => $entity_obj) {
-            $entity['values'][] = [
-              'entity_type' => $entity_type,
-              'entity_bundle' => $entity_bundle,
-              'entity_id' => $entity_id
-            ];
-          }
-          if(!empty($entity)) {
-            $operations[] = ['processContentExportFiles', $entity];
-          }
+      $reflection = new \ReflectionClass($definition->getClass());
+      if ($reflection->implementsInterface(ContentEntityInterface::class)) {
+        $entities = $this->entityTypeManager->getStorage($entity_type)
+                                            ->getQuery()
+                                            ->execute();
+        foreach ($entities as $entity_id) {
+          $entities_list[] = [
+            'entity_type' => $entity_type,
+            'entity_id' => $entity_id,
+          ];
         }
       }
     }
-    if(empty($operations)){
-      $operations[] = ['processContentExportFiles', [0=>0] ];
+    if (!empty($entities_list)) {
+      $batch = $this->generateBatch($entities_list);
+      batch_set($batch);
     }
-    //Set Batch
-    $batch = [
-      'operations' => $operations,
-      'finished' => 'finishContentExportBatch',
-      'title' => $this->t('Exporting content'),
-      'init_message' => $this->t('Starting content export.'),
-      'progress_message' => $this->t('Completed @current step of @total.'),
-      'error_message' => $this->t('Content export has encountered an error.'),
-      'file' => drupal_get_path('module', 'content_sync') . '/content_sync.batch.inc',
-    ];
-    batch_set($batch);
   }
+
+  /**
+   * @inheritdoc
+   */
+  protected function getEntityTypeManager() {
+    return $this->entityTypeManager;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  protected function getContentExporter() {
+    return $this->contentExporter;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  protected function getLogger() {
+    return $this->logger('content_sync');
+  }
+
 }
+
