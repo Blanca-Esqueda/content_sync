@@ -63,3 +63,11 @@ services:
   plugin.manager.sync_normalizer_decorator:
     class: Drupal\content_sync\Plugin\SyncNormalizerDecoratorManager
     parent: default_plugin_manager
+  yaml_serialization.encoder.yaml:
+    class: Drupal\content_sync\Encoder\YamlEncoder
+    arguments: ["@serialization.yaml"]
+    tags:
+      - { name: encoder, format: yaml }
+
+
+
