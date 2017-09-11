@@ -167,8 +167,7 @@ class ContentSingleExportForm extends FormBase {
     $entity_id = $form_state->getValue('content_entity');
 
     // DB entity to YAML
-    $entity = $this->entityTypeManager->getStorage($entity_type)
-      ->load($entity_id);
+    $entity = $this->entityTypeManager->getStorage($entity_type)->load($entity_id);
     // Generate the YAML file.
     $serializer_context = [];
     $language = \Drupal::languageManager()->getCurrentLanguage()->getId();
