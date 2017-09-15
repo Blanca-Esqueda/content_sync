@@ -27,7 +27,7 @@ class IdsCleaner extends SyncNormalizerDecoratorBase {
    * @param array $context
    */
   public function decorateNormalization(array &$normalized_entity, ContentEntityInterface $entity, $format, array $context = []) {
-    $this->cleanReferencesIds($normalized_entity, $entity);
+    $this->cleanReferenceIds($normalized_entity, $entity);
     $this->cleanIds($normalized_entity, $entity);
   }
 
@@ -37,7 +37,7 @@ class IdsCleaner extends SyncNormalizerDecoratorBase {
    *
    * @return mixed
    */
-  protected function cleanReferencesIds(&$normalized_entity, ContentEntityInterface $entity) {
+  protected function cleanReferenceIds(&$normalized_entity, ContentEntityInterface $entity) {
     $field_definitions = $entity->getFieldDefinitions();
     foreach ($field_definitions as $field_name => $field_definition) {
       // We are only interested in importing content entities.
@@ -45,6 +45,14 @@ class IdsCleaner extends SyncNormalizerDecoratorBase {
         continue;
       }
       if (is_array($normalized_entity[$field_name]) && !empty($normalized_entity[$field_name])) {
+        $entity_type = $field_definition->getFieldStorageDefinition()
+                                        ->getSetting('target_type');
+        $reflection = new \ReflectionClass(\Drupal::entityTypeManager()
+                                                  ->getDefinition($entity_type)
+                                                  ->getClass());
+        if (!$reflection->implementsInterface('\Drupal\Core\Entity\ContentEntityInterface')) {
+          continue;
+        }
         $key = $field_definition->getFieldStorageDefinition()
                                 ->getMainPropertyName();
         foreach ($normalized_entity[$field_name] as &$item) {
