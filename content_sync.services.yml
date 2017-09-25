@@ -1,10 +1,10 @@
 services:
-  logger.cslog:
-    class: Drupal\content_sync\Logger\ContentSyncLog 
-    arguments: ['@database', '@logger.log_message_parser']
-    tags:
-      - { name: logger }
-      - { name: backend_overridable }
+#  logger.cslog:
+#    class: Drupal\content_sync\Logger\ContentSyncLog 
+#    arguments: ['@database', '@logger.log_message_parser']
+#    tags:
+#      - { name: logger }
+#      - { name: backend_overridable }
   content.storage.staging:
     class: Drupal\Core\Config\FileStorage
     factory: Drupal\content_sync\Content\ContentFileStorageFactory::getSync
