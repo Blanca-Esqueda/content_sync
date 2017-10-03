@@ -46,10 +46,48 @@ class ContentImporter implements ContentImporterInterface {
     }
 
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
+
+    //Get Translations before denormalize
+    if(!empty($decoded_entity['_translations'])){
+      $entity_translations = $decoded_entity['_translations'];
+    }
+
     $entity = $this->serializer->denormalize($decoded_entity, $entity_type->getClass(), $this->format, $context);
+    
     if (!empty($entity)) {
       $entity = $this->syncEntity($entity);
     }
+
+    // Include Translations
+    if ($entity){
+      $lang_default = $entity->langcode->value;
+      // Remove translations if they are in the import data then they would be re-inserted.
+      foreach ($entity->getTranslationLanguages() as $langcode => $language) {
+        // Verify that it is not the default langcode.
+        if ( $langcode != $lang_default ) {
+          $entity->removeTranslation($langcode);
+        }
+      }
+      if ( isset($entity_translations) && is_array($entity_translations) ) {
+        foreach ($entity_translations as $langcode => $translation) {
+          // Add translation only if it is not the default language
+          if ( $langcode != $lang_default ) {
+            $entity_translation = $entity->addTranslation($langcode);
+            foreach ($translation as $itemID => $item) {
+              if ($entity_translation->hasField($itemID)){
+               $entity_translation->$itemID->setValue($item);
+              }
+            }
+            if ($entity_translation->getEntityType()->hasKey('revision')) {
+              $entity_translation->updateLoadedRevisionId();
+              $entity_translation->setNewRevision(FALSE);
+            }
+            $entity_translation->save();
+          }
+        }
+      }
+    }
+
     return $entity;
   }
 
@@ -72,6 +110,9 @@ class ContentImporter implements ContentImporterInterface {
   protected function syncEntity(ContentEntityInterface $entity) {
     $preparedEntity = $this->prepareEntity($entity);
 
+//kint($entity);
+//exit;
+
     if ($this->validateEntity($preparedEntity)) {
       $preparedEntity->save();
       return $preparedEntity;
@@ -89,6 +130,12 @@ class ContentImporter implements ContentImporterInterface {
     $uuid = $entity->uuid();
     $original_entity = $this->entityTypeManager->getStorage($entity->getEntityTypeId())
                                                ->loadByProperties(['uuid' => $uuid]);
+
+
+
+//kint($original_entity);
+//exit;
+
     if (!empty($original_entity)) {
       $original_entity = reset($original_entity);
       if (!$this->updateEntities) {
@@ -97,12 +144,21 @@ class ContentImporter implements ContentImporterInterface {
       // Overwrite the received properties.
       if (!empty($entity->_restSubmittedFields)) {
         foreach ($entity->_restSubmittedFields as $field_name) {
+//kint($field_name);
+
           if ($this->isValidEntityField($original_entity, $entity, $field_name)) {
+
+            //echo $field_name;
+            //kint($entity->get($field_name)->getValue());
+
+
             $original_entity->set($field_name, $entity->get($field_name)
                                                       ->getValue());
           }
         }
       }
+
+      //exit;
       return $original_entity;
     }
     $duplicate = $entity->createDuplicate();

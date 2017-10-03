@@ -154,7 +154,12 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
         $key = $field_definition->getFieldStorageDefinition()
                                 ->getMainPropertyName();
         foreach ($data[$field_name] as &$item) {
-          if (!empty($item[$key]) && !empty($item['target_uuid'])) {
+          //correct the key.
+          $key_entityid = $key;
+          if (empty($item[$key]) && $key != 'target_type'){
+            $key_entityid = 'target_type';
+          }
+          if (!empty($item[$key_entityid]) && !empty($item['target_uuid'])) {
             $reference = $this->entityManager->loadEntityByUuid($item['target_type'], $item['target_uuid']);
             if ($reference) {
               $item[$key] = $reference->id();

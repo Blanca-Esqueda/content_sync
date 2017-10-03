@@ -4,6 +4,7 @@ namespace Drupal\content_sync\Exporter;
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Symfony\Component\Serializer\Serializer;
+use Drupal\Component\Serialization\Yaml;
 
 class ContentExporter implements ContentExporterInterface {
 
@@ -38,7 +39,25 @@ class ContentExporter implements ContentExporterInterface {
 //      'original_entity' => $entity,
 //    ];
 
-    return $normalized_entity;
+    $yaml_parsed = Yaml::decode($normalized_entity);
+    // Include translations to the normalized entity
+    $c = 0;
+    $lang_default = \Drupal::languageManager()->getCurrentLanguage()->getId();
+    foreach ($entity->getTranslationLanguages() as $langcode => $language) {
+      // Verify that it is not the default langcode.
+      if ( $langcode != $lang_default ) {
+        if ( $entity->hasTranslation($langcode) ) {
+          $entity_translated = $entity->getTranslation($langcode);
+          $normalized_entity_translations = $this->serializer->serialize($entity_translated, $this->format, $context);
+          //$normalized_data['_translations'][$c] = $contentExporter->exportEntity($object_translated, $serializer_context);
+          $yaml_parsed['_translations'][$langcode] = Yaml::decode($normalized_entity_translations);
+          $c++;
+        }
+      }
+    }
+    
+    return Yaml::encode($yaml_parsed);
+    //return $normalized_entity;
   }
 
   /**
