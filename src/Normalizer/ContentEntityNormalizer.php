@@ -59,7 +59,6 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
       // default to 'value'.
       $key_id = isset($base_field_definitions[$bundle_key]) ? $base_field_definitions[$bundle_key]->getFieldStorageDefinition()
                                                                                                   ->getMainPropertyName() : 'value';
-
       // Normalize the bundle if it is not explicitly set.
       $bundle = isset($data[$bundle_key][0][$key_id]) ? $data[$bundle_key][0][$key_id] : (isset($data[$bundle_key]) ? $data[$bundle_key] : NULL);
     }
@@ -69,8 +68,10 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
     // Remove invalid fields
     $this->cleanupData($data, $entity_type_id, $bundle);
 
+    // Data to Entity
     $entity = parent::denormalize($data, $class, $format, $context);
 
+    // Decorate denormalized entity before retuning it.
     $this->decorateDenormalizedEntity($entity, $original_data, $format, $context);
 
     return $entity;
@@ -102,7 +103,6 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
       }
       $normalized_data['_content_sync']['entity_dependencies'] = $dependencies;
     }
-
     // Decorate normalized entity before retuning it.
     if (is_a($object, ContentEntityInterface::class, TRUE)) {
       $this->decorateNormalization($normalized_data, $object, $format, $context);
@@ -123,7 +123,6 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
   public function supportsDenormalization($data, $type, $format = NULL) {
     return parent::supportsDenormalization($data, $type, $format);
   }
-
 
   /**
    * @inheritdoc
@@ -154,11 +153,6 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
         $key = $field_definition->getFieldStorageDefinition()
                                 ->getMainPropertyName();
         foreach ($data[$field_name] as &$item) {
-          //correct the key.
-          $key_entityid = $key;
-          if (empty($item[$key]) && $key != 'target_type'){
-            $key_entityid = 'target_type';
-          }
           if (!empty($item[$key_entityid]) && !empty($item['target_uuid'])) {
             $reference = $this->entityManager->loadEntityByUuid($item['target_type'], $item['target_uuid']);
             if ($reference) {
