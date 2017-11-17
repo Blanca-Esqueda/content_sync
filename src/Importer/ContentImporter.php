@@ -53,7 +53,7 @@ class ContentImporter implements ContentImporterInterface {
     }
 
     $entity = $this->serializer->denormalize($decoded_entity, $entity_type->getClass(), $this->format, $context);
-    
+
     if (!empty($entity)) {
       $entity = $this->syncEntity($entity);
     }
@@ -68,26 +68,40 @@ class ContentImporter implements ContentImporterInterface {
           $entity->removeTranslation($langcode);
         }
       }
+      // Save entity to make sure translations are removed.
+      $entity->save();
       if ( isset($entity_translations) && is_array($entity_translations) ) {
-        foreach ($entity_translations as $langcode => $translation) {
-          // Add translation only if it is not the default language
-          if ( $langcode != $lang_default ) {
-            $entity_translation = $entity->addTranslation($langcode);
-            foreach ($translation as $itemID => $item) {
-              if ($entity_translation->hasField($itemID)){
-               $entity_translation->$itemID->setValue($item);
+        $site_languages = \Drupal::languageManager()->getLanguages();
+        foreach ($site_languages as $langcode => $language) {
+          if(isset($entity_translations[$langcode])){
+            $translation = $entity_translations[$langcode];
+            // Add translation only if it is not the default language
+            if ( $langcode != $lang_default ) {
+              // Denormalize
+              $translation = $this->serializer->denormalize($translation, $entity_type->getClass(), $this->format, $context);
+              // Add translation
+              $entity_translation = $entity->addTranslation($langcode);
+              // Get fields definitions
+              $fields = $translation->getFieldDefinitions();
+              foreach ($translation as $itemID => $item) {
+                if ($entity_translation->hasField($itemID)){
+                  if ($fields[$itemID]->isTranslatable() == TRUE){
+                    $entity_translation->$itemID->setValue($item->getValue());
+                  }
+                }
               }
+              // Avoid issues updating revisions.
+              if ($entity_translation->getEntityType()->hasKey('revision')) {
+                $entity_translation->updateLoadedRevisionId();
+                $entity_translation->setNewRevision(FALSE);
+              }
+              // Save the entity translation.
+              $entity_translation->save();
             }
-            if ($entity_translation->getEntityType()->hasKey('revision')) {
-              $entity_translation->updateLoadedRevisionId();
-              $entity_translation->setNewRevision(FALSE);
-            }
-            $entity_translation->save();
           }
         }
       }
     }
-
     return $entity;
   }
 
@@ -109,10 +123,6 @@ class ContentImporter implements ContentImporterInterface {
    */
   protected function syncEntity(ContentEntityInterface $entity) {
     $preparedEntity = $this->prepareEntity($entity);
-
-//kint($entity);
-//exit;
-
     if ($this->validateEntity($preparedEntity)) {
       $preparedEntity->save();
       return $preparedEntity;
@@ -131,39 +141,27 @@ class ContentImporter implements ContentImporterInterface {
     $original_entity = $this->entityTypeManager->getStorage($entity->getEntityTypeId())
                                                ->loadByProperties(['uuid' => $uuid]);
 
-
-
-//kint($original_entity);
-//exit;
-
     if (!empty($original_entity)) {
       $original_entity = reset($original_entity);
       if (!$this->updateEntities) {
         return $original_entity;
       }
+
       // Overwrite the received properties.
       if (!empty($entity->_restSubmittedFields)) {
         foreach ($entity->_restSubmittedFields as $field_name) {
-//kint($field_name);
-
           if ($this->isValidEntityField($original_entity, $entity, $field_name)) {
-
-            //echo $field_name;
-            //kint($entity->get($field_name)->getValue());
-
-
             $original_entity->set($field_name, $entity->get($field_name)
                                                       ->getValue());
           }
         }
       }
-
-      //exit;
       return $original_entity;
     }
     $duplicate = $entity->createDuplicate();
     $entity_type = $entity->getEntityType();
     $duplicate->{$entity_type->getKey('uuid')}->value = $uuid;
+
     return $duplicate;
   }
 
@@ -207,7 +205,6 @@ class ContentImporter implements ContentImporterInterface {
           || $entity->getEntityType()
                     ->isRevisionable() && $field_name === $entity->getEntityType()
                                                                  ->getKey('revision')
-
       ) {
         $valid = FALSE;
       }
