@@ -39,9 +39,8 @@ class ContentExporter implements ContentExporterInterface {
 //      'original_entity' => $entity,
 //    ];
 
-    $yaml_parsed = Yaml::decode($normalized_entity);
     // Include translations to the normalized entity
-    $c = 0;
+    $yaml_parsed = Yaml::decode($normalized_entity);
     $lang_default = \Drupal::languageManager()->getCurrentLanguage()->getId();
     foreach ($entity->getTranslationLanguages() as $langcode => $language) {
       // Verify that it is not the default langcode.
@@ -51,13 +50,10 @@ class ContentExporter implements ContentExporterInterface {
           $normalized_entity_translations = $this->serializer->serialize($entity_translated, $this->format, $context);
           //$normalized_data['_translations'][$c] = $contentExporter->exportEntity($object_translated, $serializer_context);
           $yaml_parsed['_translations'][$langcode] = Yaml::decode($normalized_entity_translations);
-          $c++;
         }
       }
     }
-    
     return Yaml::encode($yaml_parsed);
-    //return $normalized_entity;
   }
 
   /**
