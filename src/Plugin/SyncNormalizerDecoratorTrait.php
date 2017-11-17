@@ -17,8 +17,6 @@ trait SyncNormalizerDecoratorTrait {
 
   protected function decorateDenormalization(array &$normalized_entity, $type, $format, array $context = []) {
     $plugins = $this->getDecoratorManager()->getDefinitions();
-    print_r($plugins);
-    exit;
     foreach ($plugins as $decorator) {
       /* @var $instance SyncNormalizerDecoratorInterface */
       $instance = $this->getDecoratorManager()->createInstance($decorator['id']);
