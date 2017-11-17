@@ -33,10 +33,10 @@ content.export_full:
   title: 'Archive'
   parent_id: content.export
 
-# content.view_logs:
-#  title: 'Logs'
-#  route_name: content.overview
-#  base_route: content.sync
+content.view_logs:
+  title: 'Logs'
+  route_name: content.overview
+  base_route: content.sync
 
 content.settings:
   title: 'Settings'
