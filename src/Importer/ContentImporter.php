@@ -47,6 +47,13 @@ class ContentImporter implements ContentImporterInterface {
 
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
 
+    //Exception for parent null -- allowing the term to be displayed on the taxonomy list.
+    if ($entity_type_id == 'taxonomy_term') {
+      if(empty($decoded_entity['parent'])){
+        $decoded_entity['parent']['target_id'] = 0;
+      }
+    }
+
     //Get Translations before denormalize
     if(!empty($decoded_entity['_translations'])){
       $entity_translations = $decoded_entity['_translations'];
