@@ -56,8 +56,9 @@ class Parents extends SyncNormalizerDecoratorBase implements ContainerFactoryPlu
         /** @var \Drupal\taxonomy\TermStorageInterface $storage */
         $storage = $this->entityTypeManager->getStorage($entity_type);
         $parents = $storage->loadParents($entity->id());
-        foreach ($parents as $parent) {
-          $normalized_entity['parents'][] = $parent->uuid();
+        foreach ($parents as $parent_key => $parent) {
+          $normalized_entity['parent'][] = ['target_type' =>'taxonomy_term', 'target_uuid' => $parent->uuid()];
+          $normalized_entity['_content_sync']['entity_dependencies'][$entity_type][] =  $entity_type . "." . $parent->bundle() . "." . $parent->uuid();
         }
       }
     }
