@@ -26,7 +26,10 @@ class UserEntityNormalizer extends ContentEntityNormalizer {
     if ((int) $entity->id() === 1) {
       return $entity->load(1);
     }
-
+    // User 0 is not updated.
+    if ((int) $entity->id() === 0) {
+      return $entity->load(0);
+    }
     return $entity;
   }
 
