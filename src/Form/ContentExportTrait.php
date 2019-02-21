@@ -5,6 +5,7 @@ namespace Drupal\content_sync\Form;
 use Drupal\Core\Archiver\ArchiveTar;
 use Drupal\Core\Config\DatabaseStorage;
 use Drupal\Core\Entity\ContentEntityType;
+use Drupal\Core\Serialization\Yaml;
 
 /**
  * Defines the content export form.
@@ -36,12 +37,11 @@ trait ContentExportTrait {
     //Set Batch
     $batch = [
       'operations' => $operations,
-      'finished' => 'finishContentExportBatch',
       'title' => $this->t('Exporting content'),
       'init_message' => $this->t('Starting content export.'),
       'progress_message' => $this->t('Completed @current step of @total.'),
       'error_message' => $this->t('Content export has encountered an error.'),
-      'file' => drupal_get_path('module', 'content_sync') . '/content_sync.batch.inc',
+      'finished' => [$this,'finishContentExportBatch'],
     ];
     return $batch;
   }
@@ -99,7 +99,7 @@ trait ContentExportTrait {
    * @param array $context
    *   The batch context.
    */
-  protected function generateSiteUUIDFile($data, &$context) {
+  public function generateSiteUUIDFile($data, &$context) {
 
     //Include Site UUID to YML file
     $site_config = \Drupal::config('system.site');
@@ -128,10 +128,12 @@ trait ContentExportTrait {
    *
    * Provide information about the Content Batch results.
    */
-  protected function finishContentExportBatch($success, $results, $operations) {
+   public function finishContentExportBatch($success, $results, $operations) {
     if ($success) {
-      $errors = $results['errors'];
-      unset($results['errors']);
+      if (isset($results['errors'])){
+        $errors = $results['errors'];
+        unset($results['errors']);
+      }
       $results = array_unique($results);
       // Log all the items processed
       foreach ($results as $key => $result) {
@@ -144,7 +146,7 @@ trait ContentExportTrait {
                ]);
         }
       }
-      if (!empty($errors)) {
+      if (isset($errors) && !empty($errors)) {
         // Log the errors
         $errors = array_unique($errors);
         foreach ($errors as $error) {
@@ -177,7 +179,7 @@ trait ContentExportTrait {
 
   protected function getArchiver() {
     if (!isset($this->archiver)) {
-      $this->archiver = new ArchiveTar($this->getTempFile());
+      $this->archiver = new ArchiveTar($this->getTempFile(), 'gz');
     }
     return $this->archiver;
   }
@@ -203,4 +205,3 @@ trait ContentExportTrait {
 
 
 }
-
