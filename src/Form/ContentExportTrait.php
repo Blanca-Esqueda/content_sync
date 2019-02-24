@@ -20,19 +20,21 @@ trait ContentExportTrait {
   /**
    * @param $entities
    *
+   * @param $export_type
+   * files => YAML files.
+   * snapshot => cs_db_snapshot table.
+   *
    * @return array
    */
-  public function generateBatch($entities) {
+  public function generateBatch($entities, $export_type = 'files') {
     //Set batch operations by entity type/bundle
     $operations = [];
-    $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => 0]];
+    $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => $export_type]];
     foreach ($entities as $entity) {
       $entity_to_export = [];
+      $entity['export_type'] = $export_type;
       $entity_to_export['values'][] = $entity;
       $operations[] = [[$this, 'processContentExportFiles'], $entity_to_export];
-    }
-    if (empty($operations)) {
-      $operations[] = [[$this, 'processContentExportFiles'], [0 => 0]];
     }
     //Set Batch
     $batch = [
@@ -41,8 +43,10 @@ trait ContentExportTrait {
       'init_message' => $this->t('Starting content export.'),
       'progress_message' => $this->t('Completed @current step of @total.'),
       'error_message' => $this->t('Content export has encountered an error.'),
-      'finished' => [$this,'finishContentExportBatch'],
     ];
+    if ($export_type == 'files') {
+      $batch['finished'] = [$this,'finishContentExportBatch'];
+    }
     return $batch;
   }
 
@@ -61,9 +65,11 @@ trait ContentExportTrait {
       $context['sandbox']['current_number'] = 0;
       $context['sandbox']['max'] = count($files);
     }
+
     // Get submitted values
     $entity_type = $files[$context['sandbox']['progress']]['entity_type'];
     $entity_id = $files[$context['sandbox']['progress']]['entity_id'];
+    $export_type = $files[$context['sandbox']['progress']]['export_type'];
 
     //Validate that it is a Content Entity
     $instances = $this->getEntityTypeManager()->getDefinitions();
@@ -79,10 +85,17 @@ trait ContentExportTrait {
                               ->exportEntity($entity, $serializer_context);
       // Create the name
       $name = $entity_type . "." . $entity->bundle() . "." . $entity->uuid();
-      // Create the file.
-      $this->getArchiver()->addString("$name.yml", $exported_entity);
-      $context['message'] = $name;
-      $context['results'][] = $name;
+
+      if ($export_type == 'snapshot') {
+        //Save to cs_db_snapshot table.
+        $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+        $activeStorage->write($name, Yaml::decode($exported_entity));
+      }else{
+        // Create the file.
+        $this->getArchiver()->addString("$name.yml", $exported_entity);
+        $context['message'] = $name;
+        $context['results'][] = $name;
+      }
     }
     $context['sandbox']['progress']++;
     if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
@@ -108,14 +121,14 @@ trait ContentExportTrait {
 
     // Set the name
     $name = "site.uuid";
-    // Create the file.
-    $this->getArchiver()->addString("$name.yml", Yaml::encode($entity));
 
-    //Save to cs_db_snapshot if being called from installer.
     if ($data == 'snapshot') {
-      // Insert Data
+      //Save to cs_db_snapshot table.
       $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
       $activeStorage->write($name, $entity);
+    }else{
+      // Create the file.
+      $this->getArchiver()->addString("$name.yml", Yaml::encode($entity));
     }
 
     $context['message'] = $name;
