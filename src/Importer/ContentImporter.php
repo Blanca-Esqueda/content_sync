@@ -62,6 +62,10 @@ class ContentImporter implements ContentImporterInterface {
     $entity = $this->serializer->denormalize($decoded_entity, $entity_type->getClass(), $this->format, $context);
 
     if (!empty($entity)) {
+      // Prevent Anonymous User from being saved.
+      if ($entity_type_id == 'user' && !$entity->isNew() && (int) $entity->id() === 0) {
+        return $entity;
+      }
       $entity = $this->syncEntity($entity);
     }
 
@@ -226,10 +230,6 @@ class ContentImporter implements ContentImporterInterface {
     $reflection = new \ReflectionClass($entity);
     $valid = TRUE;
     if ($reflection->implementsInterface('\Drupal\user\UserInterface')) {
-      // Anonymous and SuperAdmin users are not valid for updating
-      if (!$entity->isNew() && ((int) $entity->id() === 1 || (int) $entity->id() === 0)) {
-        return FALSE;
-      }
       $validations = $entity->validate();
       if (count($validations)) {
         /**
