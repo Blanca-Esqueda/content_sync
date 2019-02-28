@@ -204,18 +204,15 @@ class ContentImporter implements ContentImporterInterface {
       // Unchanged values for entity keys don't need access checking.
       if ($original_entity->get($field_name)
                           ->getValue() === $entity->get($field_name)->getValue()
-
           // It is not possible to set the language to NULL as it is
           // automatically re-initialized.
           // As it must not be empty, skip it if it is.
-          || isset($entity_keys['langcode']) && $field_name === $entity_keys['langcode'] && $entity->get($field_name)
-                                                                                                   ->isEmpty()
-
+          || isset($entity_keys['langcode'])
+          && $field_name === $entity_keys['langcode']
+          && $entity->get($field_name)->isEmpty()
           || $field_name === $entity->getEntityType()->getKey('id')
-
-          || $entity->getEntityType()
-                    ->isRevisionable() && $field_name === $entity->getEntityType()
-                                                                 ->getKey('revision')
+          || $entity->getEntityType()->isRevisionable()
+          && $field_name === $entity->getEntityType()->getKey('revision')
       ) {
         $valid = FALSE;
       }

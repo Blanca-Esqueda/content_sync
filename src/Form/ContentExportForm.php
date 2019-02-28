@@ -89,7 +89,7 @@ class ContentExportForm extends FormBase {
       batch_set($batch);
     }
   }
-    public function snapshot() {
+  public function snapshot() {
     //Set batch operations by entity type/bundle
     $entities_list = [];
     $entity_type_definitions = $this->entityTypeManager->getDefinitions();
