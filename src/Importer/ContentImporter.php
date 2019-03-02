@@ -45,6 +45,11 @@ class ContentImporter implements ContentImporterInterface {
       return NULL;
     }
 
+    // Replace a menu link to a node with an actual one.
+    if ($entity_type_id == 'menu_link_content' && !empty($decoded_entity["_content_sync"]["menu_entity_link"])) {
+      $decoded_entity = $this->alterMenuLink($decoded_entity);
+    }
+
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
 
     //Exception for parent null -- allowing the term to be displayed on the taxonomy list.
@@ -114,6 +119,25 @@ class ContentImporter implements ContentImporterInterface {
       }
     }
     return $entity;
+  }
+
+  /**
+   * Replaces a link to a node with an actual one.
+   *
+   * @param array $decoded_entity
+   *   Array of entity values.
+   *
+   * @return array
+   *   Array of entity values with the link values changed.
+   */
+  protected function alterMenuLink(array $decoded_entity) {
+    $referenced_entity_uuid = reset($decoded_entity["_content_sync"]["menu_entity_link"]);
+    $referenced_entity_type = key($decoded_entity["_content_sync"]["menu_entity_link"]);
+    if ($referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)) {
+      $staged_uri = explode(':', $decoded_entity["link"][0]["uri"]);
+      $decoded_entity["link"][0]["uri"] = $staged_uri[0] . ':/' . $referenced_entity->toUrl()->getInternalPath();
+    }
+    return $decoded_entity;
   }
 
   /**
