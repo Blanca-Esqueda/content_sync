@@ -134,8 +134,8 @@ class ContentImporter implements ContentImporterInterface {
     $referenced_entity_uuid = reset($decoded_entity["_content_sync"]["menu_entity_link"]);
     $referenced_entity_type = key($decoded_entity["_content_sync"]["menu_entity_link"]);
     if ($referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)) {
-      $staged_uri = explode(':', $decoded_entity["link"][0]["uri"]);
-      $decoded_entity["link"][0]["uri"] = $staged_uri[0] . ':/' . $referenced_entity->toUrl()->getInternalPath();
+      $url = $referenced_entity->toUrl();
+      $decoded_entity["link"][0]["uri"] = $url->toUriString();
     }
     return $decoded_entity;
   }
