@@ -24,6 +24,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drush\Commands\DrushCommands;
 use Drush\Exceptions\UserAbortException;
+use Drush\Utils\FsUtils;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -205,6 +206,7 @@ class ContentSyncCommands extends DrushCommands {
     else {
       $source_storage = $this->getContentStorageSync();
     }
+    $directory = self::getDirectory($label, $options['source']);
 
     // Determine $source_storage in partial case.
     $active_storage = $this->getContentStorage();
@@ -240,7 +242,7 @@ class ContentSyncCommands extends DrushCommands {
     }
 
     if ($this->io()->confirm(dt('Import the listed content changes?'))) {
-      return drush_op([$this, 'doImport'], $change_list);
+      return drush_op([$this, 'doImport'], $change_list, $directory);
     }
     else {
       throw new UserAbortException();
@@ -250,12 +252,12 @@ class ContentSyncCommands extends DrushCommands {
   /**
    * Copied from submitForm() at src/Form/ContentSync.php.
    */
-  public function doImport($change_list) {
+  public function doImport($change_list, $directory) {
 
     // Set Batch to process the files from the content directory.
     // Get the files to be processed.
     $content_to_sync = $content_to_delete = [];
-    foreach ($change_list as $actions) {
+    foreach ((array) $change_list as $actions) {
       if (!empty($actions['create'])) {
         $content_to_sync = array_merge($content_to_sync, $actions['create']);
       }
@@ -270,8 +272,8 @@ class ContentSyncCommands extends DrushCommands {
       'title' => $this->t('Synchronizing Content...'),
       'message' => $this->t('Synchronizing Content...'),
       'operations' => [
-        [[$this, 'syncContent'], [$content_to_sync]],
-        [[$this, 'deleteContent'], [$content_to_delete]],
+        [[$this, 'syncContent'], [$content_to_sync, $directory]],
+        [[$this, 'deleteContent'], [$content_to_delete, $directory]],
       ],
       'finished' => [$this, 'finishBatch'],
     ];
@@ -285,12 +287,13 @@ class ContentSyncCommands extends DrushCommands {
    *
    * @param array $content_to_sync
    *   The content to import.
-   * @param array $context
+   * @param string $directory
+   *   The source directory.
+   * @param array|\ArrayAccess $context
    *   The batch context.
    */
-  public function syncContent(array $content_to_sync, array &$context) {
+  public function syncContent(array $content_to_sync, $directory, &$context) {
     if (empty($context['sandbox'])) {
-      $directory = content_sync_get_content_directory('sync');
       $queue = $this->contentSyncManager->generateImportQueue($content_to_sync, $directory);
       $context['sandbox']['progress'] = 0;
       $context['sandbox']['queue'] = $queue;
@@ -344,12 +347,13 @@ class ContentSyncCommands extends DrushCommands {
    *
    * @param array $content_to_sync
    *   The content to delete.
-   * @param array $context
+   * @param string $directory
+   *   The source directory.
+   * @param array|\ArrayAccess $context
    *   The batch context.
    */
-  public function deleteContent(array $content_to_sync, array &$context) {
+  public function deleteContent(array $content_to_sync, $directory, &$context) {
     if (empty($context['sandbox'])) {
-      $directory = content_sync_get_content_directory('sync');
       $context['sandbox']['progress'] = 0;
       $context['sandbox']['queue'] = $content_to_sync;
       $context['sandbox']['directory'] = $directory;
@@ -683,7 +687,7 @@ class ContentSyncCommands extends DrushCommands {
     if (!empty($directory)) {
       if ($directory === TRUE) {
         // The user did not pass a specific directory, make one.
-        $return = FsUtils::prepareBackupDir('content-import-export');
+        $return = class_exists('FsUtils') ? FsUtils::prepareBackupDir('content-import-export') : drush_prepare_backup_dir('content-import-export');
       }
       else {
         // The user has specified a directory.
