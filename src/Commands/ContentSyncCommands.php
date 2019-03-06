@@ -122,7 +122,7 @@ class ContentSyncCommands extends DrushCommands {
   /**
    * {@inheritdoc}
    */
-  protected function getLogger() {
+  protected function getExportLogger() {
     return $this->logger('content_sync');
   }
 
@@ -203,7 +203,7 @@ class ContentSyncCommands extends DrushCommands {
     'entity_types' => '',
     'uuids' => '',
   ]) {
-     // Set default value for a source folder.
+    // Set default value for a source folder.
     if (empty($options['source'])) {
       $options['source'] = content_sync_get_content_directory('sync');
     }
@@ -238,7 +238,7 @@ class ContentSyncCommands extends DrushCommands {
     $storage_comparer = new StorageComparer($source_storage, $active_storage, $config_manager);
 
     if (!$storage_comparer->createChangelist()->hasChanges()) {
-      $this->getLogger()->notice(dt('There are no changes to import!filters.', ['!filters' => !empty($filters) ? ' (filtering by ' . implode(', ', array_keys($filters)) . ')' : '']));
+      $this->getExportLogger()->notice(dt('There are no changes to import!filters.', ['!filters' => !empty($filters) ? ' (filtering by ' . implode(', ', array_keys($filters)) . ')' : '']));
       return;
     }
 
@@ -541,7 +541,7 @@ class ContentSyncCommands extends DrushCommands {
       // Retrieve a list of differences between the active and target content.
       $content_comparer = new StorageComparer($temp_source_storage, $target_storage, $this->getConfigManager());
       if (!$content_comparer->createChangelist()->hasChanges()) {
-        $this->getLogger()->notice(dt('The active content!filters is identical to the content in the export directory (!target).', [
+        $this->getExportLogger()->notice(dt('The active content!filters is identical to the content in the export directory (!target).', [
           '!target' => $destination_dir,
           '!filters' => !empty($filters) ? ' (filtered by ' . implode(', ', array_keys($filters)) . ')' : '',
         ]));
@@ -573,7 +573,7 @@ class ContentSyncCommands extends DrushCommands {
     // Write all .yml files.
     self::copyContent($temp_source_storage, $target_storage);
 
-    $this->getLogger()->success(dt('Content successfully exported to !target.', ['!target' => $destination_dir]));
+    $this->getExportLogger()->success(dt('Content successfully exported to !target.', ['!target' => $destination_dir]));
     drush_backend_set_result($destination_dir);
   }
 
