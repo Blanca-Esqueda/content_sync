@@ -188,6 +188,7 @@ class ContentSyncCommands extends DrushCommands {
    * @command content-sync:import
    * @interact-config-label
    * @option diff Show preview as a diff.
+   * @option entity_types A list of entity type names separated by commas.
    * @option preview Deprecated. Format for displaying proposed changes. Recognized values: list, diff.
    * @option source An arbitrary directory that holds the content files. An alternative to label argument
    * @option partial Allows for partial content imports from the source directory. Only updates and new contents will be processed with this flag (missing contents will not be deleted).
@@ -198,6 +199,7 @@ class ContentSyncCommands extends DrushCommands {
     'source' => FALSE,
     'partial' => FALSE,
     'diff' => FALSE,
+    'entity_types' => '',
   ]) {
     // Determine source directory.
     if ($target = $options['source']) {
@@ -210,6 +212,12 @@ class ContentSyncCommands extends DrushCommands {
 
     // Determine $source_storage in partial case.
     $active_storage = $this->getContentStorage();
+
+    $entity_types = empty($options['entity_types']) ? [] : explode(',', $options['entity_types']);
+    if (!empty($entity_types)) {
+      $source_storage = $this->getFilteredSourceStorage($source_storage, $active_storage, $entity_types);
+    }
+
     if ($options['partial']) {
       $replacement_storage = new StorageReplaceDataWrapper($active_storage);
       foreach ($source_storage->listAll() as $name) {
@@ -443,11 +451,16 @@ class ContentSyncCommands extends DrushCommands {
    * @interact-config-label
    * @option destination An arbitrary directory that should receive the exported files. A backup directory is used when no value is provided.
    * @option diff Show preview as a diff, instead of a change list.
+   * @option entity_types A list of entity type names separated by commas.
    * @usage drush content-sync-export --destination
    *   Export content; Save files in a backup directory named content-export.
    * @aliases cse,content-sync-export
    */
-  public function export($label = NULL, array $options = ['destination' => '', 'diff' => FALSE]) {
+  public function export($label = NULL, array $options = [
+    'destination' => '',
+    'diff' => FALSE,
+    'entity_types' => '',
+  ]) {
     // Get destination directory.
     $destination_dir = self::getDirectory($label, $options['destination']);
 
@@ -458,7 +471,8 @@ class ContentSyncCommands extends DrushCommands {
     $temp_source_storage = new FileStorage($temp_source_dir);
 
     // Do the actual content export operation.
-    drush_op([$this, 'doExport'], $options, $destination_dir, $temp_source_storage);
+    $entity_types = empty($options['entity_types']) ? [] : explode(',', $options['entity_types']);
+    drush_op([$this, 'doExport'], $options, $destination_dir, $temp_source_storage, $entity_types);
   }
 
   /**
@@ -494,7 +508,7 @@ class ContentSyncCommands extends DrushCommands {
   /**
    * Exports content.
    */
-  public function doExport($options, $destination_dir, $temp_source_storage) {
+  public function doExport($options, $destination_dir, $temp_source_storage, array $entity_types) {
     // Prepare the content storage for the export.
     if ($destination_dir == Path::canonicalize(\content_sync_get_content_directory('sync'))) {
       $target_storage = $this->getContentStorageSync();
@@ -504,6 +518,9 @@ class ContentSyncCommands extends DrushCommands {
     }
 
     if (count(glob($destination_dir . '/*')) > 0) {
+      if (!empty($entity_types)) {
+        $temp_source_storage = $this->getFilteredSourceStorage($temp_source_storage, $target_storage, $entity_types);
+      }
       // Retrieve a list of differences between the active and target content.
       $content_comparer = new StorageComparer($temp_source_storage, $target_storage, $this->getConfigManager());
       if (!$content_comparer->createChangelist()->hasChanges()) {
@@ -541,7 +558,7 @@ class ContentSyncCommands extends DrushCommands {
   }
 
   /**
-   * Build a table of content changes.
+   * Builds a table of content changes.
    *
    * @param array $content_changes
    *   An array of changes keyed by collection.
@@ -629,7 +646,7 @@ class ContentSyncCommands extends DrushCommands {
   }
 
   /**
-   * Get diff between two content sets.
+   * Gets diff between two content sets.
    *
    * @param \Drupal\Core\Config\StorageInterface $destination_storage
    *   The destination storage.
@@ -695,6 +712,46 @@ class ContentSyncCommands extends DrushCommands {
       $return = \content_sync_get_content_directory($label ?: 'sync');
     }
     return Path::canonicalize($return);
+  }
+
+  /**
+   * Gets a filtered source storage.
+   *
+   * @param \Drupal\Core\Config\StorageInterface $source_storage
+   *   The source storage.
+   * @param \Drupal\Core\Config\StorageInterface $destination_storage
+   *   The destination storage.
+   * @param array $entity_types
+   *   The entity types list.
+   *
+   * @return \Drupal\Core\Config\StorageInterface
+   *   The filtered source storage.
+   */
+  protected function getFilteredSourceStorage(StorageInterface $source_storage, StorageInterface $destination_storage, array $entity_types) {
+    $temp_source_dir = drush_tempdir();
+    $temp_source_storage = new FileStorage($temp_source_dir);
+    self::copyContent($source_storage, $temp_source_storage);
+
+    $destination_list = $destination_storage->listAll();
+    foreach ($temp_source_storage->listAll() as $name) {
+      if (!in_array(array_shift(explode('.', $name)), $entity_types) && !in_array($name, $destination_list)) {
+        $temp_source_storage->delete($name);
+      }
+    }
+    $replacement_storage = new StorageReplaceDataWrapper($temp_source_storage);
+    foreach ($destination_list as $name) {
+      if (!in_array(array_shift(explode('.', $name)), $entity_types)) {
+        $data = $destination_storage->read($name);
+        if ($replacement_storage->exists($name)) {
+          $replacement_storage->replaceData($name, $data);
+        }
+        else {
+          $replacement_storage->write($name, $data);
+        }
+      }
+    }
+    $temp_source_storage = $replacement_storage;
+    return $temp_source_storage;
   }
 
 }
