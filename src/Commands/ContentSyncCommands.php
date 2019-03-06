@@ -189,6 +189,7 @@ class ContentSyncCommands extends DrushCommands {
    * @interact-config-label
    * @option diff Show preview as a diff.
    * @option entity_types A list of entity type names separated by commas.
+   * @option uuids A list of UUIDs separated by commas.
    * @option preview Deprecated. Format for displaying proposed changes. Recognized values: list, diff.
    * @option source An arbitrary directory that holds the content files. An alternative to label argument
    * @option partial Allows for partial content imports from the source directory. Only updates and new contents will be processed with this flag (missing contents will not be deleted).
@@ -200,6 +201,7 @@ class ContentSyncCommands extends DrushCommands {
     'partial' => FALSE,
     'diff' => FALSE,
     'entity_types' => '',
+    'uuids' => '',
   ]) {
     // Determine source directory.
     if ($target = $options['source']) {
@@ -212,10 +214,11 @@ class ContentSyncCommands extends DrushCommands {
 
     // Determine $source_storage in partial case.
     $active_storage = $this->getContentStorage();
-
-    $entity_types = empty($options['entity_types']) ? [] : explode(',', $options['entity_types']);
-    if (!empty($entity_types)) {
-      $source_storage = $this->getFilteredSourceStorage($source_storage, $active_storage, $entity_types);
+    $filters = [];
+    $filters += empty($options['entity_types']) ? [] : ['entity_types' => explode(',', $options['entity_types'])];
+    $filters += empty($options['uuids']) ? [] : ['uuids' => explode(',', $options['uuids'])];
+    if (!empty($filters)) {
+      $source_storage = $this->getFilteredSourceStorage($source_storage, $active_storage, $filters);
     }
 
     if ($options['partial']) {
@@ -231,7 +234,7 @@ class ContentSyncCommands extends DrushCommands {
     $storage_comparer = new StorageComparer($source_storage, $active_storage, $config_manager);
 
     if (!$storage_comparer->createChangelist()->hasChanges()) {
-      $this->getLogger()->notice(('There are no changes to import.'));
+      $this->getLogger()->notice(dt('There are no changes to import!filters.', ['!filters' => !empty($filters) ? ' (filtering by ' . implode(', ', array_keys($filters)) . ')' : '']));
       return;
     }
 
@@ -457,6 +460,7 @@ class ContentSyncCommands extends DrushCommands {
    * @option destination An arbitrary directory that should receive the exported files. A backup directory is used when no value is provided.
    * @option diff Show preview as a diff, instead of a change list.
    * @option entity_types A list of entity type names separated by commas.
+   * @option uuids A list of UUIDs separated by commas.
    * @usage drush content-sync-export --destination
    *   Export content; Save files in a backup directory named content-export.
    * @aliases cse,content-sync-export
@@ -465,6 +469,7 @@ class ContentSyncCommands extends DrushCommands {
     'destination' => '',
     'diff' => FALSE,
     'entity_types' => '',
+    'uuids' => '',
   ]) {
     // Get destination directory.
     $destination_dir = self::getDirectory($label, $options['destination']);
@@ -523,13 +528,19 @@ class ContentSyncCommands extends DrushCommands {
     }
 
     if (count(glob($destination_dir . '/*')) > 0) {
-      if (!empty($entity_types)) {
-        $temp_source_storage = $this->getFilteredSourceStorage($temp_source_storage, $target_storage, $entity_types);
+      $filters = [];
+      $filters += empty($options['entity_types']) ? [] : ['entity_types' => explode(',', $options['entity_types'])];
+      $filters += empty($options['uuids']) ? [] : ['uuids' => explode(',', $options['uuids'])];
+      if (!empty($filters)) {
+        $temp_source_storage = $this->getFilteredSourceStorage($temp_source_storage, $target_storage, $filters);
       }
       // Retrieve a list of differences between the active and target content.
       $content_comparer = new StorageComparer($temp_source_storage, $target_storage, $this->getConfigManager());
       if (!$content_comparer->createChangelist()->hasChanges()) {
-        $this->getLogger()->notice(dt('The active content is identical to the content in the export directory (!target).', ['!target' => $destination_dir]));
+        $this->getLogger()->notice(dt('The active content!filters is identical to the content in the export directory (!target).', [
+          '!target' => $destination_dir,
+          '!filters' => !empty($filters) ? ' (filtered by ' . implode(', ', array_keys($filters)) . ')' : '',
+        ]));
         return;
       }
       $this->output()->writeln("Differences of the active content to the export directory:\n");
@@ -726,26 +737,27 @@ class ContentSyncCommands extends DrushCommands {
    *   The source storage.
    * @param \Drupal\Core\Config\StorageInterface $destination_storage
    *   The destination storage.
-   * @param array $entity_types
-   *   The entity types list.
+   * @param array $filters
+   *   The filters list.
    *
    * @return \Drupal\Core\Config\StorageInterface
    *   The filtered source storage.
    */
-  protected function getFilteredSourceStorage(StorageInterface $source_storage, StorageInterface $destination_storage, array $entity_types) {
+  protected function getFilteredSourceStorage(StorageInterface $source_storage, StorageInterface $destination_storage, array $filters) {
     $temp_source_dir = drush_tempdir();
     $temp_source_storage = new FileStorage($temp_source_dir);
     self::copyContent($source_storage, $temp_source_storage);
-
     $destination_list = $destination_storage->listAll();
     foreach ($temp_source_storage->listAll() as $name) {
-      if (!in_array(array_shift(explode('.', $name)), $entity_types) && !in_array($name, $destination_list)) {
+      list($entity_type_id, , $uuid) = explode('.', $name);
+      if (((isset($filters['entity_types']) && !empty($filters['entity_types']) && !in_array($entity_type_id, $filters['entity_types'])) || (isset($filters['uuids']) && !empty($filters['uuids']) && !in_array($uuid, $filters['uuids']))) && !in_array($name, $destination_list)) {
         $temp_source_storage->delete($name);
       }
     }
     $replacement_storage = new StorageReplaceDataWrapper($temp_source_storage);
     foreach ($destination_list as $name) {
-      if (!in_array(array_shift(explode('.', $name)), $entity_types)) {
+      list($entity_type_id, , $uuid) = explode('.', $name);
+      if ((isset($filters['entity_types']) && !empty($filters['entity_types']) && !in_array($entity_type_id, $filters['entity_types'])) || (isset($filters['uuids']) && !empty($filters['uuids']) && !in_array($uuid, $filters['uuids']))) {
         $data = $destination_storage->read($name);
         if ($replacement_storage->exists($name)) {
           $replacement_storage->replaceData($name, $data);
