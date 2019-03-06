@@ -336,10 +336,7 @@ class ContentSyncCommands extends DrushCommands {
       }
     }
     $context['sandbox']['progress']++;
-    $context['finished'] = $context['sandbox']['max'] > 0 ? $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
-    if ($context['sandbox']['progress'] >= $context['sandbox']['max']) {
-      $context['finished'] = 1;
-    }
+    $context['finished'] = $context['sandbox']['max'] > 0 && $context['sandbox']['progress'] < $context['sandbox']['max'] ? $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
   }
 
   /**
@@ -396,10 +393,7 @@ class ContentSyncCommands extends DrushCommands {
       $context['results']['errors'][] = $context['message'];
     }
 
-    $context['finished'] = $context['sandbox']['max'] > 0 ? $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
-    if ($context['sandbox']['progress'] >= $context['sandbox']['max']) {
-      $context['finished'] = 1;
-    }
+    $context['finished'] = $context['sandbox']['max'] > 0 && $context['sandbox']['progress'] < $context['sandbox']['max'] ? $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
   }
 
   /**

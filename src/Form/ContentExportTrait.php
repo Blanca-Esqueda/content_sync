@@ -98,11 +98,28 @@ trait ContentExportTrait {
         $this->getArchiver()->addString("$name.yml", $exported_entity);
         $context['message'] = $name;
         $context['results'][] = $name;
+        $to_file = TRUE;
       }
     }
     $context['sandbox']['progress']++;
-    if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
-      $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+    //if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
+    // $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+    // }
+    // TO DO - Store file in the archiver as it is processed instead of all at the end.
+
+    if (!isset($serializer_context['content_sync_directory'])) {
+      $serializer_context['content_sync_directory'] = content_sync_get_content_directory('sync');
+    }
+
+    $context['finished'] = $context['sandbox']['max'] > 0
+                        && $context['sandbox']['progress'] < $context['sandbox']['max'] ?
+                           $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
+
+    if ($context['finished'] == 1
+      && isset($to_file)
+      && !empty($serializer_context['content_sync_directory_file'])
+      && file_exists("{$serializer_context['content_sync_directory']}/files")) {
+      $this->getArchiver()->addModify("{$serializer_context['content_sync_directory']}/files", '', $serializer_context['content_sync_directory_file']);
     }
   }
 
