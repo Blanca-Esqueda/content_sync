@@ -368,26 +368,31 @@ class ContentSyncCommands extends DrushCommands {
       $error = TRUE;
       $item = array_pop($context['sandbox']['queue']);
       list($entity_type_id, , $uuid) = explode('.', $item);
-      $entity = $this->entityManager->loadEntityByUuid($entity_type_id, $uuid);
-      if ($entity) {
-        try {
-          $message = $this->t('Deleted content @label (@entity_type: @id).', [
-            '@label' => $entity->label(),
-            '@id' => $entity->id(),
-            '@entity_type' => $entity->getEntityTypeId(),
-          ]);
-          $entity->delete();
-          $error = FALSE;
-        }
-        catch (EntityStorageException $e) {
-          $message = $e->getMessage();
-          $this->io()->writeln($message);
-        }
+      if ($entity_type_id == 'user' && $uuid == $this->entityManager->getStorage('user')->load(1)->uuid()) {
+        $message = $this->t('The super administrator user cannot be deleted.');
       }
       else {
-        $message = $this->t('Error deleting content of type @entity_type.', [
-          '@entity_type' => $entity_type_id,
-        ]);
+        $entity = $this->entityManager->loadEntityByUuid($entity_type_id, $uuid);
+        if ($entity) {
+          try {
+            $message = $this->t('Deleted content @label (@entity_type: @id).', [
+              '@label' => $entity->label(),
+              '@id' => $entity->id(),
+              '@entity_type' => $entity->getEntityTypeId(),
+            ]);
+            $entity->delete();
+            $error = FALSE;
+          }
+          catch (EntityStorageException $e) {
+            $message = $e->getMessage();
+            $this->io()->writeln($message);
+          }
+        }
+        else {
+          $message = $this->t('Error deleting content of type @entity_type.', [
+            '@entity_type' => $entity_type_id,
+          ]);
+        }
       }
     }
     $context['results'][] = TRUE;
@@ -414,8 +419,8 @@ class ContentSyncCommands extends DrushCommands {
     if ($success) {
       if (!empty($results['errors'])) {
         foreach ($results['errors'] as $error) {
-          \Drupal::getContainer()->get('content_sync.commands')->io()->writeln($error);
-          \Drupal::logger('config_sync')->error($error);
+          \Drupal::getContainer()->get('content_sync.commands')->io()->writeln($error->__toString());
+          \Drupal::logger('config_sync')->error($error->__toString());
         }
         \Drupal::getContainer()->get('content_sync.commands')->io()->writeln(\Drupal::translation()
           ->translate('The content was imported with errors.')->__toString());
