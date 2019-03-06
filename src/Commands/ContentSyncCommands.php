@@ -197,12 +197,16 @@ class ContentSyncCommands extends DrushCommands {
    */
   public function import($label = NULL, array $options = [
     'preview' => 'list',
-    'source' => FALSE,
+    'source' => NULL,
     'partial' => FALSE,
     'diff' => FALSE,
     'entity_types' => '',
     'uuids' => '',
   ]) {
+     // Set default value for a source folder.
+    if (empty($options['source'])) {
+      $options['source'] = content_sync_get_content_directory('sync');
+    }
     // Determine source directory.
     if ($target = $options['source']) {
       $source_storage = new FileStorage($target);
@@ -714,7 +718,7 @@ class ContentSyncCommands extends DrushCommands {
     if (!empty($directory)) {
       if ($directory === TRUE) {
         // The user did not pass a specific directory, make one.
-        $return = class_exists('FsUtils') ? FsUtils::prepareBackupDir('content-import-export') : drush_prepare_backup_dir('content-import-export');
+        $return = class_exists('Drush\Utils\FsUtils') ? FsUtils::prepareBackupDir('content-import-export') : drush_prepare_backup_dir('content-import-export');
       }
       else {
         // The user has specified a directory.
