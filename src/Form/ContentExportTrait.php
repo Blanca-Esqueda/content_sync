@@ -20,21 +20,22 @@ trait ContentExportTrait {
   /**
    * @param $entities
    *
-   * @param $export_type
-   * files => YAML files.
-   * snapshot => cs_db_snapshot table.
+   * @param $serializer_context
+   * export_type:
+   * It has two values files or snapshot.
+   * Files is the default option.
+   *
+   * content_sync_directory:
+   * path for the content sync directory.
    *
    * @return array
    */
-  public function generateBatch($entities, $export_type = 'files') {
+  public function generateBatch($entities, $serializer_context = []) {
     //Set batch operations by entity type/bundle
     $operations = [];
-    $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => $export_type]];
+    $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => $serializer_context]];
     foreach ($entities as $entity) {
-      $entity_to_export = [];
-      $entity['export_type'] = $export_type;
-      $entity_to_export['values'][] = $entity;
-      $operations[] = [[$this, 'processContentExportFiles'], $entity_to_export];
+      $operations[] = [[$this, 'processContentExportFiles'], [[$entity], $serializer_context]];
     }
     //Set Batch
     $batch = [
@@ -44,21 +45,23 @@ trait ContentExportTrait {
       'progress_message' => $this->t('Completed @current step of @total.'),
       'error_message' => $this->t('Content export has encountered an error.'),
     ];
-    if ($export_type == 'files') {
+    if (isset($serializer_context['export_type'])
+      && $serializer_context['export_type'] != 'snapshot') {
       $batch['finished'] = [$this,'finishContentExportBatch'];
     }
     return $batch;
   }
 
-  /**
+/**
    * Processes the content archive export batch
    *
    * @param $files
    *   The batch content to persist.
+   * @param $serializer_context
    * @param array $context
    *   The batch context.
    */
-  public function processContentExportFiles($files, &$context) {
+  public function processContentExportFiles($files, $serializer_context, &$context) {
     //Initialize Batch
     if (empty($context['sandbox'])) {
       $context['sandbox']['progress'] = 0;
@@ -69,7 +72,6 @@ trait ContentExportTrait {
     // Get submitted values
     $entity_type = $files[$context['sandbox']['progress']]['entity_type'];
     $entity_id = $files[$context['sandbox']['progress']]['entity_id'];
-    $export_type = $files[$context['sandbox']['progress']]['export_type'];
 
     //Validate that it is a Content Entity
     $instances = $this->getEntityTypeManager()->getDefinitions();
@@ -80,13 +82,14 @@ trait ContentExportTrait {
       $entity = $this->getEntityTypeManager()->getStorage($entity_type)
                      ->load($entity_id);
       // Generate the YAML file.
-      $serializer_context = [];
       $exported_entity = $this->getContentExporter()
                               ->exportEntity($entity, $serializer_context);
       // Create the name
       $name = $entity_type . "." . $entity->bundle() . "." . $entity->uuid();
 
-      if ($export_type == 'snapshot') {
+      //Store the generated YAML.
+      if (isset($serializer_context['export_type'])
+        && $serializer_context['export_type'] == 'snapshot') {
         //Save to cs_db_snapshot table.
         $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
         $activeStorage->write($name, Yaml::decode($exported_entity));
@@ -112,7 +115,7 @@ trait ContentExportTrait {
    * @param array $context
    *   The batch context.
    */
-  public function generateSiteUUIDFile($data, &$context) {
+  public function generateSiteUUIDFile($serializer_context, &$context) {
 
     //Include Site UUID to YML file
     $site_config = \Drupal::config('system.site');
@@ -122,7 +125,8 @@ trait ContentExportTrait {
     // Set the name
     $name = "site.uuid";
 
-    if ($data == 'snapshot') {
+    if (isset($serializer_context['export_type'])
+        && $serializer_context['export_type'] == 'snapshot') {
       //Save to cs_db_snapshot table.
       $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
       $activeStorage->write($name, $entity);

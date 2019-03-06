@@ -108,7 +108,8 @@ class ContentExportForm extends FormBase {
       }
     }
     if (!empty($entities_list)) {
-      $batch = $this->generateBatch($entities_list, 'snapshot');
+      $serializer_context = ['export_type' => 'snapshot'];
+      $batch = $this->generateBatch($entities_list, $serializer_context);
       batch_set($batch);
     }
   }
