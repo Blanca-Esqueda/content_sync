@@ -61,7 +61,8 @@ trait ContentExportTrait {
    * @param array $context
    *   The batch context.
    */
-  public function processContentExportFiles($files, $serializer_context, &$context) {
+  public function processContentExportFiles($files, $serializer_context = [], &$context) {
+
     //Initialize Batch
     if (empty($context['sandbox'])) {
       $context['sandbox']['progress'] = 0;
@@ -96,11 +97,11 @@ trait ContentExportTrait {
       }else{
         // Create the file.
         $this->getArchiver()->addString("$name.yml", $exported_entity);
-        $context['message'] = $name;
-        $context['results'][] = $name;
         $to_file = TRUE;
       }
     }
+    $context['message'] = $name;
+    $context['results'][] = $name;
     $context['sandbox']['progress']++;
     //if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
     // $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];

@@ -1,0 +1,48 @@
+{
+  "name": "drupal/content_sync",
+  "description": "Content Sync functionality.",
+  "type": "drupal-module",
+  "homepage": "http://drupal.org/project/content_sync",
+  "authors": [
+    {
+      "name": "Blanca.Esqueda",
+      "homepage": "https://www.drupal.org/u/blancaesqueda",
+      "role": "Maintainer"
+    },
+    {
+      "name": "David Gil Hidalgo",
+      "homepage": "https://www.drupal.org/u/dabito",
+      "role": "Maintainer"
+    },
+    {
+      "name": "David Nova",
+      "homepage": "https://www.drupal.org/u/david4lim",
+      "role": "Maintainer"
+    },
+    {
+      "name": "Andrés Moncada",
+      "homepage": "https://www.drupal.org/u/acmoncadab4",
+      "role": "Contributor"
+    },
+    {
+      "name": "See contributors",
+      "homepage": "https://www.drupal.org/node/2865869/committers"
+    }
+  ],
+  "support": {
+    "issues": "http://drupal.org/project/content_sync",
+  },
+  "license": "GPL-2.0+",
+  "minimum-stability": "dev",
+  "require": {
+    "drupal:serialization"
+  },
+  "suggest": {},
+  "extra": {
+    "drush": {
+      "services": {
+        "drush.services.yml": "^9"
+      }
+    }
+  }
+}
