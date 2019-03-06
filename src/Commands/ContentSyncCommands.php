@@ -257,7 +257,7 @@ class ContentSyncCommands extends DrushCommands {
     // Set Batch to process the files from the content directory.
     // Get the files to be processed.
     $content_to_sync = $content_to_delete = [];
-    foreach ((array) $change_list as $actions) {
+    foreach ($change_list as $actions) {
       if (!empty($actions['create'])) {
         $content_to_sync = array_merge($content_to_sync, $actions['create']);
       }
@@ -431,7 +431,7 @@ class ContentSyncCommands extends DrushCommands {
         ->translate('An error occurred while processing %error_operation with arguments: @arguments', [
           '%error_operation' => $error_operation[0],
           '@arguments' => print_r($error_operation[1], TRUE),
-        ]);
+        ])->__toString();
       \Drupal::getContainer()->get('content_sync.commands')->io()->writeln($message);
     }
   }
@@ -454,14 +454,14 @@ class ContentSyncCommands extends DrushCommands {
    * @aliases cse,content-sync-export
    */
   public function export($label = NULL, array $options = ['destination' => '', 'diff' => FALSE]) {
-    drush_op([$this, 'doUpdate']);
+    // Get destination directory.
+    $destination_dir = self::getDirectory($label, $options['destination']);
+
+    drush_op([$this, 'doUpdate'], $destination_dir);
 
     $temp_source_dir = drush_tempdir();
     $this->getArchiver()->extract($temp_source_dir);
     $temp_source_storage = new FileStorage($temp_source_dir);
-
-    // Get destination directory.
-    $destination_dir = self::getDirectory($label, $options['destination']);
 
     // Do the actual content export operation.
     drush_op([$this, 'doExport'], $options, $destination_dir, $temp_source_storage);
@@ -470,7 +470,7 @@ class ContentSyncCommands extends DrushCommands {
   /**
    * Copied from submitForm() at src/Form/ContentExportForm.php.
    */
-  public function doUpdate() {
+  public function doUpdate($destination_dir) {
     // Delete the content tar file in case an older version exist.
     file_unmanaged_delete($this->getTempFile());
     // Set batch operations by entity type/bundle.
@@ -491,7 +491,7 @@ class ContentSyncCommands extends DrushCommands {
       }
     }
     if (!empty($entities_list)) {
-      $batch = $this->generateBatch($entities_list);
+      $batch = $this->generateBatch($entities_list, ['content_sync_directory' => $destination_dir]);
       batch_set($batch);
       drush_backend_batch_process();
     }
