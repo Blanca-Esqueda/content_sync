@@ -85,7 +85,8 @@ class ContentExportForm extends FormBase {
       }
     }
     if (!empty($entities_list)) {
-      $batch = $this->generateBatch($entities_list);
+      $serializer_context['export_type'] = 'tar';
+      $batch = $this->generateBatch($entities_list, $serializer_context);
       batch_set($batch);
     }
   }

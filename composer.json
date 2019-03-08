@@ -30,13 +30,10 @@
     }
   ],
   "support": {
-    "issues": "http://drupal.org/project/content_sync",
+    "issues": "http://drupal.org/project/content_sync"
   },
   "license": "GPL-2.0+",
   "minimum-stability": "dev",
-  "require": {
-    "drupal:serialization"
-  },
   "suggest": {},
   "extra": {
     "drush": {

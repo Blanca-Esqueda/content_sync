@@ -3,7 +3,7 @@
 namespace Drupal\content_sync\Form;
 
 use Drupal\Core\Archiver\ArchiveTar;
-use Drupal\Core\Config\DatabaseStorage;
+use Drupal\content_sync\Content\ContentDatabaseStorage;
 use Drupal\Core\Entity\ContentEntityType;
 use Drupal\Core\Serialization\Yaml;
 
@@ -22,8 +22,9 @@ trait ContentExportTrait {
    *
    * @param $serializer_context
    * export_type:
-   * It has two values files or snapshot.
-   * Files is the default option.
+   * Tar -> YML to Tar file
+   * Snapshot -> YML to content_sync table.
+   * Directory -> YML to folder.
    *
    * content_sync_directory:
    * path for the content sync directory.
@@ -46,7 +47,7 @@ trait ContentExportTrait {
       'error_message' => $this->t('Content export has encountered an error.'),
     ];
     if (isset($serializer_context['export_type'])
-      && $serializer_context['export_type'] != 'snapshot') {
+      && $serializer_context['export_type'] == 'tar') {
       $batch['finished'] = [$this,'finishContentExportBatch'];
     }
     return $batch;
@@ -86,17 +87,18 @@ trait ContentExportTrait {
       $exported_entity = $this->getContentExporter()
                               ->exportEntity($entity, $serializer_context);
       // Create the name
-      $name = $entity_type . "." . $entity->bundle() . "." . $entity->uuid();
+      $bundle = $entity->bundle();
+      $name = $entity_type . "." .  $bundle . "." . $entity->uuid();
 
       //Store the generated YAML.
       if (isset($serializer_context['export_type'])
         && $serializer_context['export_type'] == 'snapshot') {
         //Save to cs_db_snapshot table.
-        $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-        $activeStorage->write($name, Yaml::decode($exported_entity));
+        $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+        $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type.'.'.$bundle);
       }else{
         // Create the file.
-        $this->getArchiver()->addString("$name.yml", $exported_entity);
+        $this->getArchiver()->addString("entities/$entity_type/$bundle/$name.yml", $exported_entity);
         $to_file = TRUE;
       }
     }
@@ -146,11 +148,11 @@ trait ContentExportTrait {
     if (isset($serializer_context['export_type'])
         && $serializer_context['export_type'] == 'snapshot') {
       //Save to cs_db_snapshot table.
-      $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+      $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
       $activeStorage->write($name, $entity);
     }else{
       // Create the file.
-      $this->getArchiver()->addString("$name.yml", Yaml::encode($entity));
+      $this->getArchiver()->addString("entities/$name.yml", Yaml::encode($entity));
     }
 
     $context['message'] = $name;
