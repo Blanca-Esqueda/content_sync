@@ -2,6 +2,7 @@
 
 namespace Drupal\content_sync\Form;
 
+use Drupal\content_sync\ContentSyncManagerInterface;
 use Drupal\content_sync\Exporter\ContentExporterInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -27,20 +28,27 @@ class ContentExportForm extends FormBase {
   protected $contentExporter;
 
   /**
+   * @var \Drupal\content_sync\ContentSyncManagerInterface
+   */
+  protected $contentSyncManager;
+
+
+  /**
    * ContentExportForm constructor.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ContentSyncManagerInterface $content_sync_manager) {
     $this->entityTypeManager = $entity_type_manager;
     $this->contentExporter = $content_exporter;
+    $this->contentSyncManager = $content_sync_manager;
   }
 
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity_type.manager'),
-      $container->get('content_sync.exporter')
+      $container->get('content_sync.exporter'),
+      $container->get('content_sync.manager')
     );
   }
-
 
   /**
    * {@inheritdoc}
@@ -86,10 +94,11 @@ class ContentExportForm extends FormBase {
     }
     if (!empty($entities_list)) {
       $serializer_context['export_type'] = 'tar';
-      $batch = $this->generateBatch($entities_list, $serializer_context);
+      $batch = $this->generateExportBatch($entities_list, $serializer_context);
       batch_set($batch);
     }
   }
+
   public function snapshot() {
     //Set batch operations by entity type/bundle
     $entities_list = [];
@@ -110,7 +119,7 @@ class ContentExportForm extends FormBase {
     }
     if (!empty($entities_list)) {
       $serializer_context['export_type'] = 'snapshot';
-      $batch = $this->generateBatch($entities_list, $serializer_context);
+      $batch = $this->generateExportBatch($entities_list, $serializer_context);
       batch_set($batch);
     }
   }
