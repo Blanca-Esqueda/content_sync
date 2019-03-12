@@ -10,7 +10,7 @@ use Drupal\Core\Config\StorageInterface;
  * Extends config storage comparer.
  */
 class ContentStorageComparer extends StorageComparer {
-  
+
   /**
    * {@inheritdoc}
    */
@@ -53,7 +53,6 @@ class ContentStorageComparer extends StorageComparer {
     $source_names = [];
     foreach($names as $key => $name){
       $name = $collection.'.'.$name;
-    
       $source_storage = $this->getSourceStorage($collection);
       $target_storage = $this->getTargetStorage($collection);
       if($source_storage->exists($name) ||
@@ -69,7 +68,6 @@ class ContentStorageComparer extends StorageComparer {
       // and target storages.
       $target_data = $target_storage->readMultiple($target_names);
       $source_data = $source_storage->readMultiple($source_names);
-
       $this->targetNames[$collection] = $target_names;
       $this->sourceNames[$collection] = $source_names;
       return true;
