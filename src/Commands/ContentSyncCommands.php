@@ -5,10 +5,12 @@ namespace Drupal\content_sync\Commands;
 use Drupal\content_sync\ContentSyncManagerInterface;
 use Drupal\content_sync\Exporter\ContentExporterInterface;
 use Drupal\content_sync\Form\ContentExportTrait;
+use Drupal\content_sync\Form\ContentImportTrait;
+use Drupal\content_sync\Form\ContentSync;
 use Drupal\config\StorageReplaceDataWrapper;
 use Drupal\Core\Config\ConfigManagerInterface;
 use Drupal\Core\Config\FileStorage;
-use Drupal\Core\Config\StorageComparer;
+use Drupal\content_sync\Content\ContentStorageComparer;
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
@@ -24,11 +26,9 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drush\Commands\DrushCommands;
 use Drush\Exceptions\UserAbortException;
-use Drush\Utils\FsUtils;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Webmozart\PathUtil\Path;
 
 /**
  * A Drush commandfile.
@@ -44,8 +44,10 @@ use Webmozart\PathUtil\Path;
 class ContentSyncCommands extends DrushCommands {
 
   use ContentExportTrait;
+  use ContentImportTrait;
   use DependencySerializationTrait;
   use StringTranslationTrait;
+
 
   protected $configManager;
 
@@ -60,8 +62,6 @@ class ContentSyncCommands extends DrushCommands {
   protected $entityTypeManager;
 
   protected $contentExporter;
-
-  protected $eventDispatcher;
 
   protected $lock;
 
@@ -177,6 +177,18 @@ class ContentSyncCommands extends DrushCommands {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.manager'),
+      $container->get('content.storage'),
+      $container->get('content.storage.sync'),
+      $container->get('content_sync.manager')
+    );
+  }
+
+  /**
    * Import content from a content directory.
    *
    * @param string|null $label
@@ -187,92 +199,68 @@ class ContentSyncCommands extends DrushCommands {
    *
    * @command content-sync:import
    * @interact-config-label
-   * @option diff Show preview as a diff.
-   * @option entity_types A list of entity type names separated by commas.
+   * @option entity-types A list of entity type names separated by commas.
    * @option uuids A list of UUIDs separated by commas.
-   * @option preview Deprecated. Format for displaying proposed changes. Recognized values: list, diff.
-   * @option source An arbitrary directory that holds the content files. An alternative to label argument
-   * @option partial Allows for partial content imports from the source directory. Only updates and new contents will be processed with this flag (missing contents will not be deleted).
+   * @option actions A list of Actions separated by commas.
+   * @option skiplist skip the change list before proceed with the import.
+   * @usage drush content-sync-import.
    * @aliases csi,content-sync-import
    */
   public function import($label = NULL, array $options = [
-    'preview' => 'list',
-    'source' => NULL,
-    'partial' => FALSE,
-    'diff' => FALSE,
-    'entity_types' => '',
+    'entity-types' => '',
     'uuids' => '',
-  ]) {
-    // Set default value for a source folder.
-    if (empty($options['source'])) {
-      $options['source'] = content_sync_get_content_directory('sync');
-    }
-    // Determine source directory.
-    if ($target = $options['source']) {
-      $source_storage = new FileStorage($target);
-    }
-    else {
-      $source_storage = $this->getContentStorageSync();
-    }
-    $directory = self::getDirectory($label, $options['source']);
+    'actions' => '',
+    'skiplist' => FALSE ]) {
 
-    // Determine $source_storage in partial case.
-    $active_storage = $this->getContentStorage();
-    $filters = [];
-    $filters += empty($options['entity_types']) ? [] : ['entity_types' => explode(',', $options['entity_types'])];
-    $filters += empty($options['uuids']) ? [] : ['uuids' => explode(',', $options['uuids'])];
-    if (!empty($filters)) {
-      $source_storage = $this->getFilteredSourceStorage($source_storage, $active_storage, $filters);
-    }
-
-    if ($options['partial']) {
-      $replacement_storage = new StorageReplaceDataWrapper($active_storage);
-      foreach ($source_storage->listAll() as $name) {
-        $data = $source_storage->read($name);
-        $replacement_storage->replaceData($name, $data);
+    //Generate comparer with filters.
+    $storage_comparer = new ContentStorageComparer($this->contentStorageSync, $this->contentStorage,  $this->configManager);
+    $change_list = [];
+    $collections = $storage_comparer->getAllCollectionNames();
+    if (!empty($options['entity-types'])){
+      $entity_types = explode(',', $options['entity-types']);
+      $match_collections = [];
+      foreach ($entity_types as $entity_type){
+        $match_collections = $match_collections + preg_grep('/^'.$entity_type.'/', $collections);
       }
-      $source_storage = $replacement_storage;
+      $collections = $match_collections;
     }
-
-    $config_manager = $this->getConfigManager();
-    $storage_comparer = new StorageComparer($source_storage, $active_storage, $config_manager);
-
-    if (!$storage_comparer->createChangelist()->hasChanges()) {
-      $this->getExportLogger()->notice(dt('There are no changes to import!filters.', ['!filters' => !empty($filters) ? ' (filtering by ' . implode(', ', array_keys($filters)) . ')' : '']));
-      return;
-    }
-
-    if ($options['preview'] == 'list' && !$options['diff']) {
-      $change_list = [];
-      foreach ($storage_comparer->getAllCollectionNames() as $collection) {
+    foreach ($collections as $collection){
+      if (!empty($options['uuids'])){
+        $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
+      }else{
+        $storage_comparer->createChangelistbyCollection($collection);
+      }
+      if (!empty($options['actions'])){
+        $actions = explode(',', $options['actions']);
+        foreach ($actions as $op){
+          if (in_array($op, ['create','update','delete'])){
+            $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
+          }
+        }
+      }else{
         $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
       }
+      $change_list = array_map('array_filter', $change_list);
+      $change_list = array_filter($change_list);
+    }
+    unset($change_list['']);
+
+    // Display the change list.
+    if (empty($options['skiplist'])){
+      //Show differences
+      $this->output()->writeln("Differences of the export directory to the active content:\n");
+      // Print a table with changes in color.
       $table = self::contentChangesTable($change_list, $this->output());
       $table->render();
+      // Ask to continue
+      if (!$this->io()->confirm(dt('Do you want to import?'))) {
+        throw new UserAbortException();
+      }
     }
-    else {
-      $output = self::getDiff($active_storage, $source_storage, $this->output());
-
-      $this->output()->writeln(implode("\n", $output));
-    }
-
-    if ($this->io()->confirm(dt('Import the listed content changes?'))) {
-      return drush_op([$this, 'doImport'], $change_list, $directory);
-    }
-    else {
-      throw new UserAbortException();
-    }
-  }
-
-  /**
-   * Copied from submitForm() at src/Form/ContentSync.php.
-   */
-  public function doImport($change_list, $directory) {
-
-    // Set Batch to process the files from the content directory.
-    // Get the files to be processed.
-    $content_to_sync = $content_to_delete = [];
-    foreach ($change_list as $actions) {
+    //Process the Import Data
+    $content_to_sync = [];
+    $content_to_delete = [];
+    foreach ($change_list as $collection => $actions) {
       if (!empty($actions['create'])) {
         $content_to_sync = array_merge($content_to_sync, $actions['create']);
       }
@@ -283,172 +271,15 @@ class ContentSyncCommands extends DrushCommands {
         $content_to_delete = $actions['delete'];
       }
     }
-    $batch = [
-      'title' => $this->t('Synchronizing Content...'),
-      'message' => $this->t('Synchronizing Content...'),
-      'operations' => [
-        [[$this, 'syncContent'], [$content_to_sync, $directory]],
-        [[$this, 'deleteContent'], [$content_to_delete, $directory]],
-      ],
-      'finished' => [$this, 'finishBatch'],
-    ];
-
-    batch_set($batch);
-    drush_backend_batch_process();
-  }
-
-  /**
-   * Processes the content import batch.
-   *
-   * @param array $content_to_sync
-   *   The content to import.
-   * @param string $directory
-   *   The source directory.
-   * @param array|\ArrayAccess $context
-   *   The batch context.
-   */
-  public function syncContent(array $content_to_sync, $directory, &$context) {
-    if (empty($context['sandbox'])) {
-      $queue = $this->contentSyncManager->generateImportQueue($content_to_sync, $directory);
-      $context['sandbox']['progress'] = 0;
-      $context['sandbox']['queue'] = $queue;
-      $context['sandbox']['directory'] = $directory;
-      $context['sandbox']['max'] = count($queue);
-    }
-    if (!empty($context['sandbox']['queue'])) {
-      $error = FALSE;
-      $item = array_pop($context['sandbox']['queue']);
-      $decoded_entity = $item['decoded_entity'];
-      $entity_type_id = $item['entity_type_id'];
-      $cs_context = [
-        'content_sync_directory' => $context['sandbox']['directory'],
-      ];
-      $entity = $this->contentSyncManager->getContentImporter()
-        ->importEntity($decoded_entity, $cs_context);
-      if ($entity) {
-        $context['results'][] = TRUE;
-        $context['message'] = $this->t('Imported content @label (@entity_type: @id).', [
-          '@label' => $entity->label(),
-          '@id' => $entity->id(),
-          '@entity_type' => $entity->getEntityTypeId(),
-        ]);
-        unset($entity);
-      }
-      else {
-        $error = TRUE;
-      }
-      if ($error) {
-        $context['message'] = $this->t('Error importing content of type @entity_type.', [
-          '@entity_type' => $entity_type_id,
-        ]);
-        if (!isset($context['results']['errors'])) {
-          $context['results']['errors'] = [];
-        }
-        $context['results']['errors'][] = $context['message'];
-      }
-      if ($error) {
-        $this->io()->writeln($context['message']);
-      }
-    }
-    $context['sandbox']['progress']++;
-    $context['finished'] = $context['sandbox']['max'] > 0 && $context['sandbox']['progress'] < $context['sandbox']['max'] ? $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
-  }
-
-  /**
-   * Processes the content delete batch.
-   *
-   * @param array $content_to_sync
-   *   The content to delete.
-   * @param string $directory
-   *   The source directory.
-   * @param array|\ArrayAccess $context
-   *   The batch context.
-   */
-  public function deleteContent(array $content_to_sync, $directory, &$context) {
-    if (empty($context['sandbox'])) {
-      $context['sandbox']['progress'] = 0;
-      $context['sandbox']['queue'] = $content_to_sync;
-      $context['sandbox']['directory'] = $directory;
-      $context['sandbox']['max'] = count($content_to_sync);
-    }
-    if (!empty($context['sandbox']['queue'])) {
-      $error = TRUE;
-      $item = array_pop($context['sandbox']['queue']);
-      list($entity_type_id, , $uuid) = explode('.', $item);
-      if ($entity_type_id == 'user' && $uuid == $this->entityManager->getStorage('user')->load(1)->uuid()) {
-        $message = $this->t('The super administrator user cannot be deleted.');
-      }
-      else {
-        $entity = $this->entityManager->loadEntityByUuid($entity_type_id, $uuid);
-        if ($entity) {
-          try {
-            $message = $this->t('Deleted content @label (@entity_type: @id).', [
-              '@label' => $entity->label(),
-              '@id' => $entity->id(),
-              '@entity_type' => $entity->getEntityTypeId(),
-            ]);
-            $entity->delete();
-            $error = FALSE;
-          }
-          catch (EntityStorageException $e) {
-            $message = $e->getMessage();
-            $this->io()->writeln($message);
-          }
-        }
-        else {
-          $message = $this->t('Error deleting content of type @entity_type.', [
-            '@entity_type' => $entity_type_id,
-          ]);
-        }
-      }
-    }
-    $context['results'][] = TRUE;
-    $context['sandbox']['progress']++;
-    $context['message'] = $message;
-
-    if ($error) {
-      if (!isset($context['results']['errors'])) {
-        $context['results']['errors'] = [];
-      }
-      $context['results']['errors'][] = $context['message'];
-    }
-
-    $context['finished'] = $context['sandbox']['max'] > 0 && $context['sandbox']['progress'] < $context['sandbox']['max'] ? $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
-  }
-
-  /**
-   * Finish batch.
-   *
-   * This function is a static function to avoid serializing the ConfigSync
-   * object unnecessarily.
-   */
-  public static function finishBatch($success, $results, $operations) {
-    if ($success) {
-      if (!empty($results['errors'])) {
-        foreach ($results['errors'] as $error) {
-          \Drupal::getContainer()->get('content_sync.commands')->io()->writeln($error->__toString());
-          \Drupal::logger('config_sync')->error($error->__toString());
-        }
-        \Drupal::getContainer()->get('content_sync.commands')->io()->writeln(\Drupal::translation()
-          ->translate('The content was imported with errors.')->__toString());
-      }
-      else {
-        \Drupal::getContainer()->get('content_sync.commands')->io()->writeln(\Drupal::translation()
-          ->translate('The content was imported successfully.')->__toString());
-      }
-    }
-    else {
-      // An error occurred.
-      // $operations contains the operations that remained unprocessed.
-      $error_operation = reset($operations);
-      $message = \Drupal::translation()
-        ->translate('An error occurred while processing %error_operation with arguments: @arguments', [
-          '%error_operation' => $error_operation[0],
-          '@arguments' => print_r($error_operation[1], TRUE),
-        ])->__toString();
-      \Drupal::getContainer()->get('content_sync.commands')->io()->writeln($message);
+    // Set the Import Batch
+    if (!empty($content_to_sync) || !empty($content_to_delete)) {
+      $batch = $this->generateImportBatch($content_to_sync,
+        $content_to_delete);
+      batch_set($batch);
+      drush_backend_batch_process();
     }
   }
+
 
   /**
    * Export Drupal content to a directory.
@@ -456,125 +287,121 @@ class ContentSyncCommands extends DrushCommands {
    * @param string|null $label
    *   A content directory label (i.e. a key in $content_directories array in
    *   settings.php).
+   *
    * @param array $options
    *   The command options.
    *
    * @command content-sync:export
    * @interact-config-label
-   * @option destination An arbitrary directory that should receive the exported files. A backup directory is used when no value is provided.
-   * @option diff Show preview as a diff, instead of a change list.
-   * @option entity_types A list of entity type names separated by commas.
+   * @option entity-types A list of entity type names separated by commas.
    * @option uuids A list of UUIDs separated by commas.
-   * @usage drush content-sync-export --destination
-   *   Export content; Save files in a backup directory named content-export.
-   * @aliases cse,content-sync-export
+   * @option actions A list of Actions separated by commas.
+   * @option files A value none/base64/folder  -  default folder.
+   * @option include-dependencies export content dependencies.
+   * @option skiplist skip the change list before proceed with the export.
+   * @usage drush content-sync-export.
+   * @aliases cse,content-sync-export.
    */
   public function export($label = NULL, array $options = [
-    'destination' => '',
-    'diff' => FALSE,
-    'entity_types' => '',
+    'entity-types' => '',
     'uuids' => '',
-  ]) {
-    // Get destination directory.
-    $destination_dir = self::getDirectory($label, $options['destination']);
+    'actions' => '',
+    'files' => '',
+    'include-dependencies' => FALSE,
+    'skiplist' => FALSE ]) {
 
-    drush_op([$this, 'doUpdate'], $destination_dir);
+    //Generate comparer with filters.
+    $storage_comparer = new ContentStorageComparer($this->contentStorage, $this->contentStorageSync, $this->configManager);
+    $change_list = [];
+    $collections = $storage_comparer->getAllCollectionNames();
+    if (!empty($options['entity-types'])){
+      $entity_types = explode(',', $options['entity-types']);
+      $match_collections = [];
+      foreach ($entity_types as $entity_type){
+        $match_collections = $match_collections + preg_grep('/^'.$entity_type.'/', $collections);
+      }
+      $collections = $match_collections;
+    }
+    foreach ($collections as $collection){
+      if (!empty($options['uuids'])){
+        $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
+      }else{
+        $storage_comparer->createChangelistbyCollection($collection);
+      }
+      if (!empty($options['actions'])){
+        $actions = explode(',', $options['actions']);
+        foreach ($actions as $op){
+          if (in_array($op, ['create','update','delete'])){
+            $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
+          }
+        }
+      }else{
+        $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
+      }
+      $change_list = array_map('array_filter', $change_list);
+      $change_list = array_filter($change_list);
+    }
+    unset($change_list['']);
 
-    $temp_source_dir = drush_tempdir();
-    $this->getArchiver()->extract($temp_source_dir);
-    $temp_source_storage = new FileStorage($temp_source_dir);
+    // Display the change list.
+    if (empty($options['skiplist'])){
+      //Show differences
+      $this->output()->writeln("Differences of the active content to the export directory:\n");
+      // Print a table with changes in color.
+      $table = self::contentChangesTable($change_list, $this->output());
+      $table->render();
+      // Ask to continue
+      if (!$this->io()->confirm(dt('Do you want to export?'))) {
+        throw new UserAbortException();
+      }
+    }
 
-    // Do the actual content export operation.
-    $entity_types = empty($options['entity_types']) ? [] : explode(',', $options['entity_types']);
-    drush_op([$this, 'doExport'], $options, $destination_dir, $temp_source_storage, $entity_types);
-  }
-
-  /**
-   * Copied from submitForm() at src/Form/ContentExportForm.php.
-   */
-  public function doUpdate($destination_dir) {
-    // Delete the content tar file in case an older version exist.
-    file_unmanaged_delete($this->getTempFile());
-    // Set batch operations by entity type/bundle.
+    //Process the Export.
     $entities_list = [];
-    $entity_type_definitions = $this->entityTypeManager->getDefinitions();
-    foreach ($entity_type_definitions as $entity_type => $definition) {
-      $reflection = new \ReflectionClass($definition->getClass());
-      if ($reflection->implementsInterface(ContentEntityInterface::class)) {
-        $entities = $this->entityTypeManager->getStorage($entity_type)
-          ->getQuery()
-          ->execute();
-        foreach ($entities as $entity_id) {
-          $entities_list[] = [
-            'entity_type' => $entity_type,
-            'entity_id' => $entity_id,
-          ];
+    foreach ($change_list as $collection => $changes) {
+      //$storage_comparer->getTargetStorage($collection)->deleteAll();
+      foreach ($changes as $change => $contents) {
+        switch ($change) {
+          case 'delete':
+            foreach ($contents as $content) {
+              $storage_comparer->getTargetStorage($collection)->delete($content);
+            }
+            break;
+          case 'update':
+          case 'create':
+            foreach ($contents as $content) {
+              //$data = $storage_comparer->getSourceStorage($collection)->read($content);
+              //$storage_comparer->getTargetStorage($collection)->write($content, $data);
+              $entity = explode('.', $content);
+              $entities_list[] = [
+                'entity_type' => $entity[0],
+                'entity_uuid' => $entity[2],
+              ];
+            }
+            break;
         }
       }
     }
+    // Files options
+    $include_files = 'folder';
+    if (!empty($options['files'])){
+      if($options['files'] == 'folder'){
+        $include_files = 'folder';
+      }elseif($options['files'] == 'base64'){
+        $include_files = 'base64';
+      }else{
+        $include_files = 'none';
+      }
+    }
+    // Set the Export Batch
     if (!empty($entities_list)) {
-      $batch = $this->generateBatch($entities_list, ['content_sync_directory' => $destination_dir]);
+      $batch = $this->generateExportBatch($entities_list,
+        ['export_type' => 'folder',
+         'include_files' => $include_files,
+         'include_dependencies' => $options['include-dependencies']]);
       batch_set($batch);
       drush_backend_batch_process();
     }
-  }
-
-  /**
-   * Exports content.
-   */
-  public function doExport($options, $destination_dir, $temp_source_storage, array $entity_types) {
-    // Prepare the content storage for the export.
-    if ($destination_dir == Path::canonicalize(\content_sync_get_content_directory('sync'))) {
-      $target_storage = $this->getContentStorageSync();
-    }
-    else {
-      $target_storage = new FileStorage($destination_dir);
-    }
-
-    if (count(glob($destination_dir . '/*')) > 0) {
-      $filters = [];
-      $filters += empty($options['entity_types']) ? [] : ['entity_types' => explode(',', $options['entity_types'])];
-      $filters += empty($options['uuids']) ? [] : ['uuids' => explode(',', $options['uuids'])];
-      if (!empty($filters)) {
-        $temp_source_storage = $this->getFilteredSourceStorage($temp_source_storage, $target_storage, $filters);
-      }
-      // Retrieve a list of differences between the active and target content.
-      $content_comparer = new StorageComparer($temp_source_storage, $target_storage, $this->getConfigManager());
-      if (!$content_comparer->createChangelist()->hasChanges()) {
-        $this->getExportLogger()->notice(dt('The active content!filters is identical to the content in the export directory (!target).', [
-          '!target' => $destination_dir,
-          '!filters' => !empty($filters) ? ' (filtered by ' . implode(', ', array_keys($filters)) . ')' : '',
-        ]));
-        return;
-      }
-      $this->output()->writeln("Differences of the active content to the export directory:\n");
-
-      if ($options['diff']) {
-        $diff = self::getDiff($target_storage, $temp_source_storage, $this->output());
-        $this->output()->writeln($diff);
-      }
-      else {
-        $change_list = [];
-        foreach ($content_comparer->getAllCollectionNames() as $collection) {
-          $change_list[$collection] = $content_comparer->getChangelist(NULL, $collection);
-        }
-        // Print a table with changes in color.
-        $table = self::contentChangesTable($change_list, $this->output());
-        $table->render();
-      }
-
-      if (!$this->io()->confirm(dt('The .yml files in your export directory (!target) will be deleted and replaced with the active content.', ['!target' => $destination_dir]))) {
-        throw new UserAbortException();
-      }
-      // Only delete .yml files, and not .htaccess or .git.
-      $target_storage->deleteAll();
-    }
-
-    // Write all .yml files.
-    self::copyContent($temp_source_storage, $target_storage);
-
-    $this->getExportLogger()->success(dt('Content successfully exported to !target.', ['!target' => $destination_dir]));
-    drush_backend_set_result($destination_dir);
   }
 
   /**
@@ -593,6 +420,7 @@ class ContentSyncCommands extends DrushCommands {
   public static function contentChangesTable(array $content_changes, OutputInterface $output, $use_color = TRUE) {
     $rows = [];
     foreach ($content_changes as $collection => $changes) {
+      if(is_array($changes)){
       foreach ($changes as $change => $contents) {
         switch ($change) {
           case 'delete':
@@ -627,152 +455,10 @@ class ContentSyncCommands extends DrushCommands {
         }
       }
     }
+    }
     $table = new Table($output);
-    $table->setHeaders(['Collection', 'Content', 'Operation']);
+    $table->setHeaders(['Collection', 'Content Name', 'Operation']);
     $table->addRows($rows);
     return $table;
   }
-
-  /**
-   * Copies content objects from source storage to target storage.
-   *
-   * @param \Drupal\Core\Config\StorageInterface $source
-   *   The source content storage service.
-   * @param \Drupal\Core\Config\StorageInterface $destination
-   *   The destination content storage service.
-   */
-  public static function copyContent(StorageInterface $source, StorageInterface $destination) {
-    // Make sure the source and destination are on the default collection.
-    if ($source->getCollectionName() != StorageInterface::DEFAULT_COLLECTION) {
-      $source = $source->createCollection(StorageInterface::DEFAULT_COLLECTION);
-    }
-    if ($destination->getCollectionName() != StorageInterface::DEFAULT_COLLECTION) {
-      $destination = $destination->createCollection(StorageInterface::DEFAULT_COLLECTION);
-    }
-
-    // Export all the content.
-    foreach ($source->listAll() as $name) {
-      $destination->write($name, $source->read($name));
-    }
-
-    // Export content collections.
-    foreach ($source->getAllCollectionNames() as $collection) {
-      $source = $source->createCollection($collection);
-      $destination = $destination->createCollection($collection);
-      foreach ($source->listAll() as $name) {
-        $destination->write($name, $source->read($name));
-      }
-    }
-  }
-
-  /**
-   * Gets diff between two content sets.
-   *
-   * @param \Drupal\Core\Config\StorageInterface $destination_storage
-   *   The destination storage.
-   * @param \Drupal\Core\Config\StorageInterface $source_storage
-   *   The source storage.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The output.
-   *
-   * @return array|bool
-   *   An array of strings containing the diff.
-   */
-  public static function getDiff(StorageInterface $destination_storage, StorageInterface $source_storage, OutputInterface $output) {
-    // Copy active storage to a temporary directory.
-    $temp_destination_dir = drush_tempdir();
-    $temp_destination_storage = new FileStorage($temp_destination_dir);
-    self::copyContent($destination_storage, $temp_destination_storage);
-
-    // Copy source storage to a temporary directory as it could be
-    // modified by the partial option or by decorated sync storages.
-    $temp_source_dir = drush_tempdir();
-    $temp_source_storage = new FileStorage($temp_source_dir);
-    self::copyContent($source_storage, $temp_source_storage);
-
-    $prefix = 'diff';
-    if (drush_program_exists('git') && $output->isDecorated()) {
-      $prefix = 'git diff --color=always';
-    }
-    drush_shell_exec($prefix . ' -u %s %s', $temp_destination_dir, $temp_source_dir);
-    return drush_shell_exec_output();
-  }
-
-  /**
-   * Determine which content directory to use and return directory path.
-   *
-   * Directory path is determined based on the following precedence:
-   *  1. User-provided $directory.
-   *  2. Directory path corresponding to $label (mapped via $content_directories
-   * in settings.php).
-   *  3. Default sync directory.
-   *
-   * @param string $label
-   *   A content directory label.
-   * @param string $directory
-   *   A content directory.
-   */
-  public static function getDirectory($label, $directory = NULL) {
-    $return = NULL;
-    // If the user provided a directory, use it.
-    if (!empty($directory)) {
-      if ($directory === TRUE) {
-        // The user did not pass a specific directory, make one.
-        $return = class_exists('Drush\Utils\FsUtils') ? FsUtils::prepareBackupDir('content-import-export') : drush_prepare_backup_dir('content-import-export');
-      }
-      else {
-        // The user has specified a directory.
-        drush_mkdir($directory);
-        $return = $directory;
-      }
-    }
-    else {
-      // If a directory isn't specified, use the label argument or default sync
-      // directory.
-      $return = \content_sync_get_content_directory($label ?: 'sync');
-    }
-    return Path::canonicalize($return);
-  }
-
-  /**
-   * Gets a filtered source storage.
-   *
-   * @param \Drupal\Core\Config\StorageInterface $source_storage
-   *   The source storage.
-   * @param \Drupal\Core\Config\StorageInterface $destination_storage
-   *   The destination storage.
-   * @param array $filters
-   *   The filters list.
-   *
-   * @return \Drupal\Core\Config\StorageInterface
-   *   The filtered source storage.
-   */
-  protected function getFilteredSourceStorage(StorageInterface $source_storage, StorageInterface $destination_storage, array $filters) {
-    $temp_source_dir = drush_tempdir();
-    $temp_source_storage = new FileStorage($temp_source_dir);
-    self::copyContent($source_storage, $temp_source_storage);
-    $destination_list = $destination_storage->listAll();
-    foreach ($temp_source_storage->listAll() as $name) {
-      list($entity_type_id, , $uuid) = explode('.', $name);
-      if (((isset($filters['entity_types']) && !empty($filters['entity_types']) && !in_array($entity_type_id, $filters['entity_types'])) || (isset($filters['uuids']) && !empty($filters['uuids']) && !in_array($uuid, $filters['uuids']))) && !in_array($name, $destination_list)) {
-        $temp_source_storage->delete($name);
-      }
-    }
-    $replacement_storage = new StorageReplaceDataWrapper($temp_source_storage);
-    foreach ($destination_list as $name) {
-      list($entity_type_id, , $uuid) = explode('.', $name);
-      if ((isset($filters['entity_types']) && !empty($filters['entity_types']) && !in_array($entity_type_id, $filters['entity_types'])) || (isset($filters['uuids']) && !empty($filters['uuids']) && !in_array($uuid, $filters['uuids']))) {
-        $data = $destination_storage->read($name);
-        if ($replacement_storage->exists($name)) {
-          $replacement_storage->replaceData($name, $data);
-        }
-        else {
-          $replacement_storage->write($name, $data);
-        }
-      }
-    }
-    $temp_source_storage = $replacement_storage;
-    return $temp_source_storage;
-  }
-
 }
