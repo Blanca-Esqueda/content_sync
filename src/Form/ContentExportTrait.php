@@ -40,6 +40,17 @@ trait ContentExportTrait {
    * @return array
    */
   public function generateExportBatch($entities, $serializer_context = []) {
+    $serializer_context['content_sync_directory_entities'] =  content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities";
+    if (isset($serializer_context['include_files'])){
+      if ($serializer_context['include_files'] == 'folder'){
+        $serializer_context['content_sync_directory_files'] =  content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/files";
+      }
+      if ($serializer_context['include_files'] == 'base64'){
+        $serializer_context['content_sync_file_base_64'] = TRUE;
+      }
+      unset($serializer_context['include_files']);
+    }
+
     //Set batch operations by entity type/bundle
     $operations = [];
     $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => $serializer_context]];
@@ -71,7 +82,7 @@ trait ContentExportTrait {
    *   The batch context.
    */
   public function processContentExportFiles($entities, $serializer_context = [], &$context) {
-
+    
     //Initialize Batch
     if (empty($context['sandbox'])) {
       $context['sandbox']['progress'] = 0;
@@ -116,7 +127,7 @@ trait ContentExportTrait {
               //Save to cs_db_snapshot table.
               $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
               $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type.'.'.$bundle);
-
+            
             }else{
 
               if ($serializer_context['export_type'] == 'tar') {
