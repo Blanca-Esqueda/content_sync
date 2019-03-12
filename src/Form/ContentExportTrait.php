@@ -101,10 +101,16 @@ trait ContentExportTrait {
       $context['results']['errors'][] = $this->t('Entity type does not exist or it is not a content instance.') . $entity_type;
     }
     else {
-
+      if (isset($item['entity_uuid'])){
+        $entity_id = $item['entity_uuid'];
+        $entity = $this->getEntityTypeManager()->getStorage($entity_type)
+                       ->loadByProperties(['uuid' => $entity_id]);
+        $entity = array_shift($entity);
+      }else{
         $entity_id = $item['entity_id'];
         $entity = $this->getEntityTypeManager()->getStorage($entity_type)
                        ->load($entity_id);
+      }
 
       //Make sure the entity exist for import
       if(empty($entity)){
