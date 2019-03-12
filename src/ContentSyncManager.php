@@ -2,8 +2,8 @@
 
 namespace Drupal\content_sync;
 
-
 use Drupal\content_sync\DependencyResolver\ImportQueueResolver;
+use Drupal\content_sync\DependencyResolver\ExportQueueResolver;
 use Drupal\content_sync\Exporter\ContentExporterInterface;
 use Drupal\content_sync\Importer\ContentImporterInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -67,7 +67,9 @@ class ContentSyncManager implements ContentSyncManagerInterface {
   public function generateImportQueue($file_names, $directory) {
     $queue = [];
     foreach ($file_names as $file) {
-      $file_path = $directory . "/" . $file . ".yml";
+      $ids = explode('.', $file);
+      list($entity_type_id, $bundle, $uuid) = $ids;
+      $file_path = $directory . "/" . $entity_type_id . "/" . $bundle . "/" . $file . ".yml";
       if (!file_exists($file_path) || !$this->isValidFilename($file)) {
         continue;
       }
@@ -79,6 +81,21 @@ class ContentSyncManager implements ContentSyncManagerInterface {
     if (!empty($decoded_entities)) {
       $resolver = new ImportQueueResolver();
       $queue = $resolver->resolve($decoded_entities);
+    }
+    return $queue;
+  }
+
+  /**
+   * @param $file_names
+   * @param $directory
+   *
+   * @return array
+   */
+  public function generateExportQueue($decoded_entities, $visited) {
+    $queue = [];
+    if (!empty($decoded_entities)) {
+      $resolver = new ExportQueueResolver();
+      $queue = $resolver->resolve($decoded_entities, $visited);
     }
     return $queue;
   }
