@@ -2,10 +2,12 @@
 
 namespace Drupal\content_sync\Form;
 
+use Drupal\content_sync\ContentSyncManagerInterface;
 use Drupal\Core\Archiver\ArchiveTar;
 use Drupal\content_sync\Content\ContentDatabaseStorage;
 use Drupal\Core\Entity\ContentEntityType;
 use Drupal\Core\Serialization\Yaml;
+use Drupal\Core\File\FileSystemInterface;
 
 /**
  * Defines the content export form.
@@ -24,14 +26,20 @@ trait ContentExportTrait {
    * export_type:
    * Tar -> YML to Tar file
    * Snapshot -> YML to content_sync table.
-   * Directory -> YML to folder.
+   * Directory -> YML to content_sync_directory_entities.
    *
-   * content_sync_directory:
+   * content_sync_directory_entities:
    * path for the content sync directory.
+   *
+   * content_sync_directory_files:
+   * path to store media/files.
+   *
+   * content_sync_file_base_64:
+   * Include file as a data in the YAML.
    *
    * @return array
    */
-  public function generateBatch($entities, $serializer_context = []) {
+  public function generateExportBatch($entities, $serializer_context = []) {
     //Set batch operations by entity type/bundle
     $operations = [];
     $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => $serializer_context]];
@@ -53,7 +61,7 @@ trait ContentExportTrait {
     return $batch;
   }
 
-/**
+  /**
    * Processes the content archive export batch
    *
    * @param $files
@@ -62,18 +70,19 @@ trait ContentExportTrait {
    * @param array $context
    *   The batch context.
    */
-  public function processContentExportFiles($files, $serializer_context = [], &$context) {
+  public function processContentExportFiles($entities, $serializer_context = [], &$context) {
 
     //Initialize Batch
     if (empty($context['sandbox'])) {
       $context['sandbox']['progress'] = 0;
       $context['sandbox']['current_number'] = 0;
-      $context['sandbox']['max'] = count($files);
+      $context['sandbox']['queue'] = $entities;
+      $context['sandbox']['max'] = count($entities);
     }
+    $item = array_pop($context['sandbox']['queue']);
 
     // Get submitted values
-    $entity_type = $files[$context['sandbox']['progress']]['entity_type'];
-    $entity_id = $files[$context['sandbox']['progress']]['entity_id'];
+    $entity_type = $item['entity_type'];
 
     //Validate that it is a Content Entity
     $instances = $this->getEntityTypeManager()->getDefinitions();
@@ -81,49 +90,63 @@ trait ContentExportTrait {
       $context['results']['errors'][] = $this->t('Entity type does not exist or it is not a content instance.') . $entity_type;
     }
     else {
-      $entity = $this->getEntityTypeManager()->getStorage($entity_type)
-                     ->load($entity_id);
-      // Generate the YAML file.
-      $exported_entity = $this->getContentExporter()
-                              ->exportEntity($entity, $serializer_context);
-      // Create the name
-      $bundle = $entity->bundle();
-      $name = $entity_type . "." .  $bundle . "." . $entity->uuid();
 
-      //Store the generated YAML.
-      if (isset($serializer_context['export_type'])
-        && $serializer_context['export_type'] == 'snapshot') {
-        //Save to cs_db_snapshot table.
-        $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-        $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type.'.'.$bundle);
+        $entity_id = $item['entity_id'];
+        $entity = $this->getEntityTypeManager()->getStorage($entity_type)
+                       ->load($entity_id);
+
+      //Make sure the entity exist for import
+      if(empty($entity)){
+        $context['results']['errors'][] = $this->t('Entity does not exist:') . $entity_type . "(".$entity_id.")";
       }else{
-        // Create the file.
-        $this->getArchiver()->addString("entities/$entity_type/$bundle/$name.yml", $exported_entity);
-        $to_file = TRUE;
+
+        // Create the name
+        $bundle = $entity->bundle();
+        $uuid = $entity->uuid();
+        $name = $entity_type . "." .  $bundle . "." . $uuid;
+
+        if (!isset($context['exported'][$name])) {
+
+          // Generate the YAML file.
+          $exported_entity = $this->getContentExporter()
+                                  ->exportEntity($entity, $serializer_context);
+
+          if (isset($serializer_context['export_type'])){
+            if ($serializer_context['export_type'] == 'snapshot') {
+              //Save to cs_db_snapshot table.
+              $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+              $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type.'.'.$bundle);
+
+            }else{
+
+              if ($serializer_context['export_type'] == 'tar') {
+                // YAML in Archive .
+                $this->getArchiver()->addString("entities/$entity_type/$bundle/$name.yml", $exported_entity);
+                // Include Files to the archiver.
+                //$exported_entity_decoded = Yaml::decode($exported_entity);
+                //if (!empty($exported_entity_decoded['_content_sync']['file_destination'])){
+                //  $this->getArchiver()->addModify($exported_entity_decoded['_content_sync']['file_destination'], '', $serializer_context['content_sync_directory']);
+                //}
+              }
+              if( $serializer_context['export_type'] == 'folder') {
+                // YAML in a directory.
+                $path = $serializer_context['content_sync_directory_entities']."/$entity_type/$bundle";
+                $destination = $path . "/$name.yml";
+                file_prepare_directory($path, FILE_CREATE_DIRECTORY);
+                $file = file_unmanaged_save_data($exported_entity, $destination, FILE_EXISTS_REPLACE);
+              }
+            }
+          }
+        }
       }
     }
     $context['message'] = $name;
     $context['results'][] = $name;
     $context['sandbox']['progress']++;
-    //if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
-    // $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
-    // }
-    // TO DO - Store file in the archiver as it is processed instead of all at the end.
-
-    if (!isset($serializer_context['content_sync_directory'])) {
-      $serializer_context['content_sync_directory'] = content_sync_get_content_directory('sync');
-    }
 
     $context['finished'] = $context['sandbox']['max'] > 0
                         && $context['sandbox']['progress'] < $context['sandbox']['max'] ?
                            $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
-
-    if ($context['finished'] == 1
-      && isset($to_file)
-      && !empty($serializer_context['content_sync_directory_file'])
-      && file_exists("{$serializer_context['content_sync_directory']}/files")) {
-      $this->getArchiver()->addModify("{$serializer_context['content_sync_directory']}/files", '', $serializer_context['content_sync_directory_file']);
-    }
   }
 
   /**
@@ -136,7 +159,6 @@ trait ContentExportTrait {
    *   The batch context.
    */
   public function generateSiteUUIDFile($serializer_context, &$context) {
-
     //Include Site UUID to YML file
     $site_config = \Drupal::config('system.site');
     $site_uuid_source = $site_config->get('uuid');
@@ -144,17 +166,21 @@ trait ContentExportTrait {
 
     // Set the name
     $name = "site.uuid";
-
-    if (isset($serializer_context['export_type'])
-        && $serializer_context['export_type'] == 'snapshot') {
-      //Save to cs_db_snapshot table.
-      $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-      $activeStorage->write($name, $entity);
-    }else{
-      // Create the file.
-      $this->getArchiver()->addString("entities/$name.yml", Yaml::encode($entity));
+    if (isset($serializer_context['export_type'])){
+      if ($serializer_context['export_type'] == 'snapshot') {
+        //Save to cs_db_snapshot table.
+        $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+        $activeStorage->write($name, $entity);
+      }elseif( $serializer_context['export_type'] == 'tar') {
+        // Add YAML to the archiver
+        $this->getArchiver()->addString("entities/$name.yml", Yaml::encode($entity));
+      }elseif( $serializer_context['export_type'] == 'folder') {
+        $path = $serializer_context['content_sync_directory_entities'];
+        $destination = $path . "/$name.yml";
+        file_prepare_directory($path, FILE_CREATE_DIRECTORY);
+        $file = file_unmanaged_save_data(Yaml::encode($entity), $destination, FILE_EXISTS_REPLACE);
+      }
     }
-
     $context['message'] = $name;
     $context['results'][] = $name;
     $context['finished'] = 1;
@@ -239,6 +265,5 @@ trait ContentExportTrait {
    * @return \Psr\Log\LoggerInterface
    */
   abstract protected function getExportLogger();
-
 
 }
