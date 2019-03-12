@@ -162,6 +162,9 @@ trait ContentExportTrait {
                 file_prepare_directory($path, FILE_CREATE_DIRECTORY);
                 $file = file_unmanaged_save_data($exported_entity, $destination, FILE_EXISTS_REPLACE);
               }
+
+              // Invalidate the CS Cache of the entity.
+              $cache = \Drupal::cache('content')->invalidate($entity_type.".".$bundle.":".$name);
             }
           }
         }
