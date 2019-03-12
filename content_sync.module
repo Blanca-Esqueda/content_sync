@@ -246,7 +246,7 @@ function content_sync_entity_delete(Drupal\Core\Entity\EntityInterface $entity){
     // Update the data for diff
     $name = $entity_type . "." . $entity_bundle . "." . $entity_uuid;
     //Delete Data
-    $activeStorage = new Drupal\Core\Config\DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-    $activeStorage->delete($name);
+    $activeStorage = new Drupal\content_sync\Content\ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+    $activeStorage->cs_delete($name);
   }
 }
