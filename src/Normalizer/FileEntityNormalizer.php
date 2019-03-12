@@ -42,7 +42,7 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
   /**
    * {@inheritdoc}
    */
-  public function denormalize($data, $class, $format = NULL, array $context = array()) {
+  public function denormalize($data, $class, $format = NULL, array $serializer_context = array()) {
 
     $file_data = '';
 
@@ -54,10 +54,10 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
     }
 
     // If a directory is set, we must to copy the file to the file system.
-    if (!empty($context['content_sync_directory'])) {
+    if (!empty($serializer_context['content_sync_directory_files'])) {
       $scheme = $this->fileSystem->uriScheme($data['uri'][0]['value']);
       if (!empty($scheme)) {
-        $source_path = realpath($context['content_sync_directory']) . '/files/' . $scheme . '/';
+        $source_path = realpath($serializer_context['content_sync_directory_files']) . $scheme . '/';
         $source      = str_replace($scheme . '://', $source_path, $data['uri'][0]['value']);
         if (file_exists($source)) {
           $file = $this->fileSystem->realpath($data['uri'][0]['value']);
@@ -79,7 +79,7 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
       }
     }
 
-    $entity = parent::denormalize($data, $class, $format, $context);
+    $entity = parent::denormalize($data, $class, $format, $serializer_context);
 
     // If the image was sent as base64 we must to create the physical file.
     if ($file_data) {
@@ -96,7 +96,7 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
     }
 
     // If the image was sent as URL we must to create the physical file.
-    if ($file_data) {
+    /*if ($file_data) {
       // Decode and save to file.
       $file_contents = base64_decode($file_data);
       $dirname = $this->fileSystem->dirname($entity->getFileUri());
@@ -107,7 +107,7 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
       else {
         throw new \RuntimeException(SafeMarkup::format('Failed to write @filename.', array('@filename' => $entity->getFilename())));
       }
-    }
+    }*/
 
     return $entity;
   }
@@ -115,22 +115,21 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
   /**
    * {@inheritdoc}
    */
-  public function normalize($object, $format = NULL, array $context = array()) {
-    $data = parent::normalize($object, $format, $context);
+  public function normalize($object, $format = NULL, array $serializer_context = array()) {
+    $data = parent::normalize($object, $format, $serializer_context);
 
     // The image will be saved in the export directory.
-    if (!empty($context['content_sync_directory'])) {
+    if (!empty($serializer_context['content_sync_directory_files'])) {
       $uri = $object->getFileUri();
       $scheme = $this->fileSystem->uriScheme($uri);
-
-      $destination = "{$context['content_sync_directory']}/files/{$scheme}/";
+      $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
       $destination = str_replace($scheme . '://', $destination, $uri);
       file_prepare_directory($this->fileSystem->dirname($destination), FILE_CREATE_DIRECTORY);
       file_unmanaged_copy($uri, $destination, FILE_EXISTS_REPLACE);
     }
 
     // Set base64-encoded file contents to the "data" property.
-    if (!empty($context['content_sync_file_base_64'])) {
+    if (!empty($serializer_context['content_sync_file_base_64'])) {
       $file_data = base64_encode(file_get_contents($object->getFileUri()));
       $data['data'] = [['value' => $file_data]];
     }
