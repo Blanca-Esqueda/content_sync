@@ -135,6 +135,16 @@ trait ContentExportTrait {
               $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type.'.'.$bundle);
             
             }else{
+              // Compate the YAML from the snapshot.
+              // If for some reason is not on our snapshoot then add it.
+              // Or if the new YAML is different the update it.
+              $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+              $exported_entity_snapshoot = $activeStorage->cs_read($name);
+
+              if (!$exported_entity_snapshoot || Yaml::encode($exported_entity_snapshoot) !== $exported_entity ){
+                //Save to cs_db_snapshot table.
+                $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type.'.'.$bundle);
+              }
 
               if ($serializer_context['export_type'] == 'tar') {
                 // YAML in Archive .
