@@ -49,15 +49,9 @@ class ExportQueueResolver implements ContentSyncResolverInterface {
           return TRUE;
         }
       }else{
-        //kint($identifier);
-        
         //Verify if dependency exist in the site and include it.
         $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
         $entity = $activeStorage->cs_read($identifier);
-
-        //kint($entity);
-        //exit;
-
         if($entity){
           $normalized_entities[$identifier] = $entity;
           $this->depthFirstSearch($visited,[$identifier], $normalized_entities);
@@ -79,8 +73,6 @@ class ExportQueueResolver implements ContentSyncResolverInterface {
    *   Queue to be processed within a batch process.
    */
   public function resolve(array $normalized_entities, $visited = []) {
-    
-    //kint($normalized_entities);
     foreach ($normalized_entities as $identifier => $entity) {
       $this->depthFirstSearch($visited, [$identifier], $normalized_entities);
     }

@@ -99,7 +99,7 @@ trait ContentImportTrait {
         $error = TRUE;
       }
       if ($error) {
-        $context['message'] = $this->t('Error exporting content of type @entity_type.', [
+        $context['message'] = $this->t('Error importing content of type @entity_type.', [
           '@entity_type' => $entity_type_id,
         ]);
         if (!isset($context['results']['errors'])) {
@@ -144,21 +144,32 @@ trait ContentImportTrait {
                                          ->loadByProperties(['uuid' => $uuid]);
       $entity = array_shift($entity);
       if (!empty($entity)) {
-        try {
-          $message = $this->t('Deleted content @label (@entity_type: @id).', [
-            '@label' => $entity->label(),
-            '@id' => $entity->id(),
-            '@entity_type' => $entity->getEntityTypeId(),
+
+        // Prevent Anonymous User and Super Admin from being deleted.
+        if ($entity_type_id == 'user' && (int) $entity->id() == 0 && (int) $entity->id() == 1) {
+
+          $message = $this->t('@uuid of type @entity_type - Anonymous or Super Admin User can not be removed.', [
+          '@entity_type' => $entity_type_id,
+          '@uuid' => $uuid,
           ]);
-          $entity->delete();
-          $error = FALSE;
-          // Invalidate the CS Cache of the entity.
-          $bundle = $entity->bundle();
-          $name = $entity_type_id . "." .  $bundle . "." . $entity->uuid();
-          $cache = \Drupal::cache('content')->invalidate($entity_type_id.".".$bundle.":".$name);
-        } catch (EntityStorageException $e) {
-          $message = $e->getMessage();
-          drupal_set_message($message, 'error');
+
+        }else{
+          try {
+            $message = $this->t('Deleted content @label (@entity_type: @id).', [
+              '@label' => $entity->label(),
+              '@id' => $entity->id(),
+              '@entity_type' => $entity->getEntityTypeId(),
+            ]);
+            $entity->delete();
+            $error = FALSE;
+            // Invalidate the CS Cache of the entity.
+            $bundle = $entity->bundle();
+            $name = $entity_type_id . "." .  $bundle . "." . $entity->uuid();
+            $cache = \Drupal::cache('content')->invalidate($entity_type_id.".".$bundle.":".$name);
+          } catch (EntityStorageException $e) {
+            $message = $e->getMessage();
+            drupal_set_message($message, 'error');
+          }
         }
       }
       else {

@@ -79,7 +79,7 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
    * @return array
    *   Queue to be processed within a batch process.
    */
-  public function resolve(array $normalized_entities) {
+  public function resolve(array $normalized_entities, $visited = []) {
     $visited = [];
     foreach ($normalized_entities as $identifier => $entity) {
       $this->depthFirstSearch($visited, [$identifier], $normalized_entities);
