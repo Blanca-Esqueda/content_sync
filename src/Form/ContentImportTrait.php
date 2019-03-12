@@ -12,8 +12,6 @@ use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Entity\ContentEntityType;
 
-
-
 /**
  * Defines the content import form.
  */
@@ -43,24 +41,6 @@ trait ContentImportTrait {
       unset($serializer_context['include_files']);
     }    
 
-    //kint($content_to_delete);
-    //kint($content_to_sync);
-    //exit;
-
-    //Set Batch
-    /*$batch = [
-      'title' => $this->t('Synchronizing Content...'),
-      'message' => $this->t('Synchronizing Content...'),
-      'operations' => [
-        [
-          [$this, 'syncContent'],
-          [$content_to_sync],
-          [$this, 'deleteContent'],
-          [$content_to_delete],
-        ],
-      ],
-      'finished' => [$this, 'finishImportBatch'],
-    ];*/
     $operations[] = [[$this, 'deleteContent'], [$content_to_delete, $serializer_context]];
     $operations[] = [[$this, 'syncContent'], [$content_to_sync, $serializer_context]];
 
@@ -73,19 +53,15 @@ trait ContentImportTrait {
     return $batch;
   }
 
-
   /**
-   * Processes the content import batch and persists the importer.
+   * Processes the content import to be updated or created batch and persists the importer.
    *
-   * @param \Drupal\Core\Config\ConfigImporter $config_importer
-   *   The batch config importer object to persist.
-   * @param string $sync_step
-   *   The synchronization step to do.
+   * @param $content_to_sync
+   * @param string $serializer_context
    * @param array $context
    *   The batch context.
    */
   public function syncContent(array $content_to_sync, $serializer_context = [], &$context) {
-    
     if (empty($context['sandbox'])) {
       $directory = $serializer_context['content_sync_directory_entities'];
       $queue = $this->contentSyncManager->generateImportQueue($content_to_sync, $directory);
@@ -142,7 +118,14 @@ trait ContentImportTrait {
                            $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
   }
 
-
+  /**
+   * Processes the content import to be deleted or created batch and persists the importer.
+   *
+   * @param $content_to_sync
+   * @param string $serializer_context
+   * @param array $context
+   *   The batch context.
+   */
   public function deleteContent(array $content_to_delete, $serializer_context = [], &$context) {
     if (empty($context['sandbox'])) {
       $directory = $serializer_context['content_sync_directory_entities'];
@@ -204,7 +187,7 @@ trait ContentImportTrait {
   /**
    * Finish batch.
    *
-   * This function is a static function to avoid serializing the ConfigSync
+   * This function is a static function to avoid serializing the ContentSync
    * object unnecessarily.
    */
   public static function finishImportBatch($success, $results, $operations) {
@@ -234,5 +217,5 @@ trait ContentImportTrait {
       drupal_set_message($message, 'error');
     }
   }
-  
+
 }
