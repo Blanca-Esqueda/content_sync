@@ -82,7 +82,6 @@ trait ContentExportTrait {
    *   The batch context.
    */
   public function processContentExportFiles($entities, $serializer_context = [], &$context) {
-    
     //Initialize Batch
     if (empty($context['sandbox'])) {
       $context['sandbox']['progress'] = 0;
@@ -133,7 +132,6 @@ trait ContentExportTrait {
               //Save to cs_db_snapshot table.
               $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
               $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type.'.'.$bundle);
-            
             }else{
               // Compate the YAML from the snapshot.
               // If for some reason is not on our snapshoot then add it.
@@ -165,6 +163,22 @@ trait ContentExportTrait {
 
               // Invalidate the CS Cache of the entity.
               $cache = \Drupal::cache('content')->invalidate($entity_type.".".$bundle.":".$name);
+
+              if($serializer_context['include_dependencies']){
+                //Include Dependencies
+                $context['exported'][$name] = $name;
+                if (!isset($context['sandbox']['dependencies'][$name])) {
+                  $exported_entity = Yaml::decode($exported_entity);
+                  $queue = $this->contentSyncManager->generateExportQueue( [$name => $exported_entity], $context['exported']);
+                  $context['sandbox']['dependencies'] = array_merge((array) $context['sandbox']['dependencies'],$queue);
+                  unset($queue[$name]);
+                  if(!empty($queue)){
+                    // Update the batch operations number
+                    $context['sandbox']['max'] = $context['sandbox']['max'] + count($queue);
+                    $context['sandbox']['queue'] = $queue;
+                  }
+                }
+              }
             }
           }
         }
