@@ -48,7 +48,7 @@ trait ContentImportTrait {
       'title' => $this->t('Synchronizing Content...'),
       'message' => $this->t('Synchronizing Content...'),
       'operations' => $operations,
-      'finished' => [$this, 'finishImportBatch'],
+      //'finished' => [$this, 'finishImportBatch'],
     ];
     return $batch;
   }
@@ -142,14 +142,17 @@ trait ContentImportTrait {
       if (!empty($entity)) {
 
         // Prevent Anonymous User and Super Admin from being deleted.
-        if ($entity_type_id == 'user' && (int) $entity->id() == 0 && (int) $entity->id() == 1) {
+        if ($entity_type_id == 'user' && (
+           (int) $entity->id() === 0 ||
+           (int) $entity->id() === 1)) {
 
-          $message = $this->t('@uuid of type @entity_type - Anonymous or Super Admin User can not be removed.', [
+          $message = $this->t('@uuid - Anonymous user or super admin can not be removed.', [
           '@entity_type' => $entity_type_id,
           '@uuid' => $uuid,
           ]);
 
         }else{
+
           try {
             $message = $this->t('Deleted content @label (@entity_type: @id).', [
               '@label' => $entity->label(),
