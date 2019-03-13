@@ -57,7 +57,7 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
     if (!empty($serializer_context['content_sync_directory_files'])) {
       $scheme = $this->fileSystem->uriScheme($data['uri'][0]['value']);
       if (!empty($scheme)) {
-        $source_path = realpath($serializer_context['content_sync_directory_files']) . $scheme . '/';
+        $source_path = realpath($serializer_context['content_sync_directory_files']) . '/' .$scheme . '/';
         $source      = str_replace($scheme . '://', $source_path, $data['uri'][0]['value']);
         if (file_exists($source)) {
           $file = $this->fileSystem->realpath($data['uri'][0]['value']);
@@ -72,7 +72,7 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
               ]
             ];
 
-            // We just need a method to create the image.
+            // We just need one method to create the image.
             $file_data = '';
           }
         }

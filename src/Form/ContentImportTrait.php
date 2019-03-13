@@ -75,12 +75,8 @@ trait ContentImportTrait {
       $item = array_pop($context['sandbox']['queue']);
       $decoded_entity = $item['decoded_entity'];
       $entity_type_id = $item['entity_type_id'];
-      $cs_context = [
-        'content_sync_directory' => $context['sandbox']['directory'],
-      ];
-
       $entity = $this->contentSyncManager->getContentImporter()
-                                         ->importEntity($decoded_entity, $cs_context);
+                                         ->importEntity($decoded_entity, $serializer_context);
       if($entity) {
         $context['results'][] = TRUE;
         $context['message'] = $this->t('Imported content @label (@entity_type: @id).', [
