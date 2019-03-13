@@ -147,11 +147,17 @@ trait ContentExportTrait {
               if ($serializer_context['export_type'] == 'tar') {
                 // YAML in Archive .
                 $this->getArchiver()->addString("entities/$entity_type/$bundle/$name.yml", $exported_entity);
+
                 // Include Files to the archiver.
-                //$exported_entity_decoded = Yaml::decode($exported_entity);
-                //if (!empty($exported_entity_decoded['_content_sync']['file_destination'])){
-                //  $this->getArchiver()->addModify($exported_entity_decoded['_content_sync']['file_destination'], '', $serializer_context['content_sync_directory']);
-                //}
+                if (method_exists($entity, 'getFileUri')
+                    && !empty($serializer_context['content_sync_directory_files']) ) {
+                  $uri = $entity->getFileUri();
+                  $scheme = \Drupal::service('file_system')->uriScheme($uri);
+                  $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
+                  $destination = str_replace($scheme . '://', $destination, $uri);
+                  $strip_path = str_replace('/files' , '', $serializer_context['content_sync_directory_files'] );
+                  $this->getArchiver()->addModify($destination, '', $strip_path);
+                }
               }
               if( $serializer_context['export_type'] == 'folder') {
                 // YAML in a directory.
