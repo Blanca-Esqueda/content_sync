@@ -4,9 +4,12 @@ namespace Drupal\content_sync\Importer;
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\serialization\Normalizer\SerializedColumnNormalizerTrait;
 use Symfony\Component\Serializer\Serializer;
 
 class ContentImporter implements ContentImporterInterface {
+
+  use SerializedColumnNormalizerTrait;
 
   protected $format = 'yaml';
 
@@ -169,6 +172,28 @@ class ContentImporter implements ContentImporterInterface {
   }
 
   /**
+   * Serializes fields which have to be stored serialized.
+   *
+   * @param $entity
+   *   The entity to update.
+   *
+   * @return mixed
+   *   The entity with the fields being serialized.
+   */
+  protected function processSerializedFields($entity) {
+    foreach ($entity->getTypedData() as $name => $field_items) {
+      foreach ($field_items as $field_item) {
+        // The field to be stored in a serialized way.
+        if (!empty($this->getCustomSerializedPropertyNames($field_item))) {
+          $unserialized_value = $field_item->get('value')->getValue();
+          $entity->set($name, is_array($unserialized_value) ? serialize($unserialized_value) : $unserialized_value);
+        }
+      }
+    }
+    return $entity;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function prepareEntity(ContentEntityInterface $entity) {
@@ -191,13 +216,13 @@ class ContentImporter implements ContentImporterInterface {
           }
         }
       }
-      return $original_entity;
+      return $this->processSerializedFields($original_entity);
     }
     $duplicate = $entity->createDuplicate();
     $entity_type = $entity->getEntityType();
     $duplicate->{$entity_type->getKey('uuid')}->value = $uuid;
 
-    return $duplicate;
+    return $this->processSerializedFields($duplicate);
   }
 
   /**
