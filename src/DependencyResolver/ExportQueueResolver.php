@@ -55,7 +55,6 @@ class ExportQueueResolver implements ContentSyncResolverInterface {
         if($entity){
           $normalized_entities[$identifier] = $entity;
           $this->depthFirstSearch($visited,[$identifier], $normalized_entities);
-          return TRUE;
         }else{
           $return = $identifier;
         }
