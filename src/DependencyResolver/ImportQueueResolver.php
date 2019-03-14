@@ -55,7 +55,7 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
 
         if (!$return){
           // Look for the reference in CS folder
-          $file_path = "/Users/Blanca/Sites/devdesktop_opin/do/../content/sync/entities/".$entity_type_id."/".$bundle."/".$identifier.".yml";
+          $file_path = content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities/".$entity_type_id."/".$bundle."/".$identifier.".yml";
           $entity = file_get_contents($file_path);
           if($entity){
             $normalized_entities[$identifier] = Yaml::decode($entity);
