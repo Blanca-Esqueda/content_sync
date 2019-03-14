@@ -383,16 +383,8 @@ class ContentSyncCommands extends DrushCommands {
       }
     }
     // Files options
-    $include_files = 'folder';
-    if (!empty($options['files'])){
-      if($options['files'] == 'folder'){
-        $include_files = 'folder';
-      }elseif($options['files'] == 'base64'){
-        $include_files = 'base64';
-      }else{
-        $include_files = 'none';
-      }
-    }
+    $include_files = self::processFilesOption($options);
+
     // Set the Export Batch
     if (!empty($entities_list)) {
       $batch = $this->generateExportBatch($entities_list,
@@ -460,5 +452,19 @@ class ContentSyncCommands extends DrushCommands {
     $table->setHeaders(['Collection', 'Content Name', 'Operation']);
     $table->addRows($rows);
     return $table;
+  }
+
+  /**
+   * Processes 'files' option.
+   *
+   * @param array $options
+   *   The command options.
+   * @return string
+   *   Processed 'files' option value.
+   */
+  public static function processFilesOption($options) {
+    $include_files = !empty($options['files']) ? $options['files'] : 'folder';
+    if (!in_array($include_files, ['folder', 'base64'])) $include_files = 'none';
+    return $include_files;
   }
 }

@@ -31,16 +31,7 @@ trait ContentImportTrait {
    */
   public function generateImportBatch($content_to_sync, $content_to_delete, $serializer_context = []) {
     $serializer_context['content_sync_directory_entities'] =  content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities";
-    if (isset($serializer_context['include_files'])){
-      if ($serializer_context['include_files'] == 'folder'){
-        $serializer_context['content_sync_directory_files'] =  content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/files";
-      }
-      if ($serializer_context['include_files'] == 'base64'){
-        $serializer_context['content_sync_file_base_64'] = TRUE;
-      }
-      unset($serializer_context['include_files']);
-    }    
-
+    $serializer_context['content_sync_directory_files'] =  content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/files";
     $operations[] = [[$this, 'deleteContent'], [$content_to_delete, $serializer_context]];
     $operations[] = [[$this, 'syncContent'], [$content_to_sync, $serializer_context]];
 
