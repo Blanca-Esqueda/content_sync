@@ -33,6 +33,11 @@ content.export_full:
   title: 'Archive'
   parent_id: content.export
 
+content.export_partial:
+  route_name: content.export_partial
+  title: 'Partial'
+  parent_id: content.export
+
 content.view_logs:
   title: 'Logs'
   route_name: content.overview

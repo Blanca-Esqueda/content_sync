@@ -103,12 +103,6 @@ class ContentSync extends FormBase {
       }
     }
 
-    $form['actions'] = ['#type' => 'actions'];
-    $form['actions']['submit'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Import all'),
-    ];
-
     //check that there is something on the content sync folder.
     $source_list = $this->syncStorage->listAll();
     $storage_comparer = new StorageComparer($this->syncStorage, $this->activeStorage, $this->configManager);
@@ -120,54 +114,31 @@ class ContentSync extends FormBase {
     // Add the AJAX library to the form for dialog support.
     $form['#attached']['library'][] = 'core/drupal.dialog.ajax';
 
+    // Drupal table element that allows user to select contents to import.
+    $form['list'] = [
+      '#type' => 'tableselect',
+      '#header' => ['name' => $this->t('Content Entity'), 'action' => $this->t('Action'), 'operations' => $this->t('Operations')],
+    ];
     foreach ($storage_comparer->getAllCollectionNames() as $collection) {
-
-
-      foreach ($storage_comparer->getChangelist(NULL, $collection) as $config_change_type => $config_names) {
-        if (empty($config_names)) {
+      foreach ($storage_comparer->getChangelist(NULL, $collection) as $content_change_type => $content_names) {
+        if (empty($content_names)) {
           continue;
         }
-        // @todo A table caption would be more appropriate, but does not have the
-        //   visual importance of a heading.
-        $form[$collection][$config_change_type]['heading'] = [
-          '#type' => 'html_tag',
-          '#tag' => 'h3',
-        ];
-        switch ($config_change_type) {
-          case 'create':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count new', '@count new');
-            break;
-
-          case 'update':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count changed', '@count changed');
-            break;
-
-          case 'delete':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count removed', '@count removed');
-            break;
-
-          case 'rename':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count renamed', '@count renamed');
-            break;
-        }
-        $form[$collection][$config_change_type]['list'] = [
-          '#type' => 'table',
-          '#header' => [$this->t('Name'), $this->t('Operations')],
-        ];
-        foreach ($config_names as $config_name) {
-          if ($config_change_type == 'rename') {
-            $names = $storage_comparer->extractRenameNames($config_name);
+        foreach ($content_names as $content_name) {
+          
+          if ($content_change_type == 'rename') {
+            $names = $storage_comparer->extractRenameNames($content_name);
             $route_options = [
               'source_name' => $names['old_name'],
               'target_name' => $names['new_name'],
             ];
-            $config_name = $this->t('@source_name to @target_name', [
+            $content_name = $this->t('@source_name to @target_name', [
               '@source_name' => $names['old_name'],
               '@target_name' => $names['new_name'],
             ]);
           }
           else {
-            $route_options = ['source_name' => $config_name];
+            $route_options = ['source_name' => $content_name];
           }
           if ($collection != StorageInterface::DEFAULT_COLLECTION) {
             $route_name = 'content.diff_collection';
@@ -176,6 +147,7 @@ class ContentSync extends FormBase {
           else {
             $route_name = 'content.diff';
           }
+
           $links['view_diff'] = [
             'title' => $this->t('View differences'),
             'url' => Url::fromRoute($route_name, $route_options),
@@ -187,8 +159,10 @@ class ContentSync extends FormBase {
               ]),
             ],
           ];
-          $form[$collection][$config_change_type]['list']['#rows'][] = [
-            'name' => $config_name,
+          // Table rows with checkboxs to select content.
+          $form['list']['#options'][$content_change_type.'='.$content_name] = [
+            'name' => $content_name,
+            'action' => $content_change_type,
             'operations' => [
               'data' => [
                 '#type' => 'operations',
@@ -199,6 +173,13 @@ class ContentSync extends FormBase {
         }
       }
     }
+    if(isset($form['list']['#options'])){
+      $form['actions'] = ['#type' => 'actions'];
+      $form['actions']['submit'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Import'),
+      ];
+    }
     return $form;
   }
 
@@ -206,6 +187,27 @@ class ContentSync extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    // Contents selected to update.
+    $content['delete'] = [];
+    $content['sync'] = [];
+    $entities = $form_state->getValue('list');  
+    foreach ($entities as $entity) {
+      $entity = explode('=', $entity);
+      list($action, $identifier) = $entity;
+      $content[$action][] = $identifier;
+    }
+    if (!empty($content['create'])) {
+      $content['sync'] = array_merge($content['sync'], $content['create']);
+    }
+    if (!empty($content['update'])) {
+      $content['sync'] = array_merge($content['sync'], $content['update']);
+    }    
+
+    $serializer_context = [];
+    $batch = $this->generateImportBatch($content['sync'], $content['delete'], $serializer_context);
+    batch_set($batch);
+
+    /*
     $comparer = $form_state->get('storage_comparer');
     $collections = $comparer->getAllCollectionNames();
     //Set Batch to process the files from the content directory.
@@ -226,7 +228,8 @@ class ContentSync extends FormBase {
     }
     $serializer_context = [];
     $batch = $this->generateImportBatch($content_to_sync, $content_to_delete, $serializer_context);
-    batch_set($batch);
+    batch_set($batch);*/
+
   }
 
 }
