@@ -54,9 +54,27 @@ trait ContentExportTrait {
     //Set batch operations by entity type/bundle
     $operations = [];
     $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => $serializer_context]];
+    
+    $query = \Drupal::database()->delete('cs_queue')
+    //->condition('myfield', 5)
+    ->execute();
     foreach ($entities as $entity) {
-      $operations[] = [[$this, 'processContentExportFiles'], [[$entity], $serializer_context]];
+      //Insert entity identifier in table cs_queue
+      // TO-DO - More than one process at the time????
+     $query = \Drupal::database()->merge('cs_queue')
+      ->key(['identifier' =>  $entity['entity_id']])
+      ->fields([
+          'identifier' =>  $entity['entity_id'],
+          'entity_type' => $entity['entity_type'],
+          'id_type' => 'entity_id',
+      ])
+      ->execute();    
     }
+
+    // TODO
+    // is it needed to pass an entity???
+    // Set batch only if there is entities to process..
+    $operations[] = [[$this, 'processContentExportFiles'], [[$entity], $serializer_context]];
     //Set Batch
     $batch = [
       'operations' => $operations,
@@ -83,13 +101,28 @@ trait ContentExportTrait {
    */
   public function processContentExportFiles($entities, $serializer_context = [], &$context) {
     //Initialize Batch
-    if (empty($context['sandbox'])) {
-      $context['sandbox']['progress'] = 0;
-      $context['sandbox']['current_number'] = 0;
-      $context['sandbox']['queue'] = $entities;
-      $context['sandbox']['max'] = count($entities);
-    }
-    $item = array_pop($context['sandbox']['queue']);
+    //TODO - INITIALIZE batch from table. 
+    //if (empty($context['sandbox'])) {
+      //$context['sandbox']['progress'] = 0;
+      //$context['sandbox']['current_number'] = 0;
+      //$context['sandbox']['queue'] = $entities;
+      //$context['sandbox']['max'] = count($entities);
+    //}
+    //$item = array_pop($context['sandbox']['queue']);
+
+    //Get an item from the queue db
+  //  $query = db_select('cs_queue', 'csq')->fields('identifier', ['nid']);
+  //if ($query->countQuery()->execute()->fetchField()) {
+  //  $result = $query->execute();
+  //}
+
+    $query =\Drupal::database()->select('cs_queue', 'csq')
+                               ->fields('csq')
+                               ->condition('processed', 0, '=')
+                               ->range(0, 1);
+    //->sort('created', 'DESC') 
+    $item = $query->execute()->fetchAssoc();
+    $item[$item['id_type']] =  $item['identifier'];
 
     // Get submitted values
     $entity_type = $item['entity_type'];
@@ -111,7 +144,7 @@ trait ContentExportTrait {
                        ->load($entity_id);
       }
 
-      //Make sure the entity exist for import
+      //Make sure the entity exist for export
       if(empty($entity)){
         $context['results']['errors'][] = $this->t('Entity does not exist:') . $entity_type . "(".$entity_id.")";
       }else{
@@ -170,21 +203,43 @@ trait ContentExportTrait {
               // Invalidate the CS Cache of the entity.
               $cache = \Drupal::cache('content')->invalidate($entity_type.".".$bundle.":".$name);
 
-              if($serializer_context['include_dependencies']){
-                //Include Dependencies
-                $context['exported'][$name] = $name;
-                if (!isset($context['sandbox']['dependencies'][$name])) {
+                
+             /// if($serializer_context['include_dependencies']){
+                // Check dependencies only if entity hasn't been checked for dependencies.
+                $query =\Drupal::database()->select('cs_queue', 'csq')
+                                           ->fields('csq')
+                                           ->condition('identifier', $item['identifier'], '=')
+                                           ->condition('entity_type', $item['entity_type'], '=')
+                                           ->condition('visited', 1, '=');
+                $visited = !(bool) $query->countQuery()->execute()->fetchField();
+                if ($visited){
                   $exported_entity = Yaml::decode($exported_entity);
-                  $queue = $this->contentSyncManager->generateExportQueue( [$name => $exported_entity], $context['exported']);
-                  $context['sandbox']['dependencies'] = array_merge((array) $context['sandbox']['dependencies'],$queue);
-                  unset($queue[$name]);
-                  if(!empty($queue)){
+                  // Add dependencies to the queue
+                  $queue = $this->contentSyncManager->generateExportQueue( [$name => $exported_entity]);
+                  //Set the dependencies-visited flag for the entity.
+                  $query =\Drupal::database()->update('cs_queue')
+                               ->fields(['visited' => 1])
+                               ->condition('identifier', $item['identifier'], '=')
+                               ->condition('entity_type', $item['entity_type'], '=')
+                               ->execute();
+                } 
+
+                //Include Dependencies
+                //$context['exported'][$name] = $name;
+                //if (!isset($context['sandbox']['dependencies'][$name])) {
+                  //$exported_entity = Yaml::decode($exported_entity);
+                  //$queue = $this->contentSyncManager->generateExportQueue( [$name => $exported_entity], $context['exported']);
+                  //$queue = $this->contentSyncManager->generateExportQueue( [$name => $exported_entity], $context['exported']);
+                  //$context['sandbox']['dependencies'] = array_merge((array) $context['sandbox']['dependencies'],$queue);
+                  //unset($queue[$name]);
+                  //if(!empty($queue)){
                     // Update the batch operations number
-                    $context['sandbox']['max'] = $context['sandbox']['max'] + count($queue);
-                    $context['sandbox']['queue'] = $queue;
-                  }
-                }
-              }
+                    //$context['sandbox']['max'] = $context['sandbox']['max'] + count($queue);
+                    //$context['sandbox']['queue'] = $queue;
+                  //}
+                //}
+            //  }
+              
             }
           }
         }
@@ -192,11 +247,24 @@ trait ContentExportTrait {
     }
     $context['message'] = $name;
     $context['results'][] = $name;
-    $context['sandbox']['progress']++;
+    //$context['sandbox']['progress']++;
+    //$context['finished'] = $context['sandbox']['max'] > 0
+    //                    && $context['sandbox']['progress'] < $context['sandbox']['max'] ?
+    //                       $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
+  
+    //Set as processed the current entity.
+    $query =\Drupal::database()->update('cs_queue')
+                               ->fields(['processed' => 1])
+                               ->condition('identifier', $item['identifier'], '=')
+                               ->condition('entity_type', $item['entity_type'], '=')
+                               ->execute();
 
-    $context['finished'] = $context['sandbox']['max'] > 0
-                        && $context['sandbox']['progress'] < $context['sandbox']['max'] ?
-                           $context['sandbox']['progress'] / $context['sandbox']['max'] : 1;
+
+    // Finished is 1 when all the items in the queue table are processed.
+    $query =\Drupal::database()->select('cs_queue', 'csq')
+                               ->fields('csq')
+                               ->condition('processed', 0, '=');
+    $context['finished'] = !(bool) $query->countQuery()->execute()->fetchField();
   }
 
   /**
