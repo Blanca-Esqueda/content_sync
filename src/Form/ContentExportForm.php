@@ -95,6 +95,7 @@ class ContentExportForm extends FormBase {
     if (!empty($entities_list)) {
       $serializer_context['export_type'] = 'tar';
       $serializer_context['include_files'] = 'folder';
+      $serializer_context['include_dependencies'] = TRUE;
       $batch = $this->generateExportBatch($entities_list, $serializer_context);
       batch_set($batch);
     }
