@@ -7,7 +7,7 @@ use Drupal\Core\Config\StorageInterface;
 
 
 /**
- * Extends config storage comparer.
+ * Extends content storage comparer.
  */
 class ContentStorageComparer extends StorageComparer {
 
@@ -16,14 +16,10 @@ class ContentStorageComparer extends StorageComparer {
    */
   public function createChangelistbyCollection($collection) {
     $this->changelist[$collection] = $this->getEmptyChangelist();
-    $this->getAndSortConfigData($collection);
+    $this->getContentData($collection);
     $this->addChangelistCreate($collection);
     $this->addChangelistUpdate($collection);
     $this->addChangelistDelete($collection);
-    // Only collections that support configuration entities can have renames.
-    if ($collection == StorageInterface::DEFAULT_COLLECTION) {
-      $this->addChangelistRename($collection);
-    }
     return $this;
   }
 
@@ -32,22 +28,18 @@ class ContentStorageComparer extends StorageComparer {
    */
   public function createChangelistbyCollectionAndNames($collection, $names) {
     $this->changelist[$collection] = $this->getEmptyChangelist();
-    if ($this->getAndSortContentDataByCollectionAndNames($collection, $names)){
+    if ($this->getContentDataByCollectionAndNames($collection, $names)){
       $this->addChangelistCreate($collection);
       $this->addChangelistUpdate($collection);
       $this->addChangelistDelete($collection);
-      // Only collections that support configuration entities can have renames.
-      if ($collection == StorageInterface::DEFAULT_COLLECTION) {
-        $this->addChangelistRename($collection);
-      }
     }
     return $this;
   }
 
   /**
-   * Gets and sorts configuration data from the source and target storages.
+   * Gets content data from the source and target storages.
    */
-  protected function getAndSortContentDataByCollectionAndNames($collection, $names) {
+  protected function getContentDataByCollectionAndNames($collection, $names) {
     $names = explode(',', $names);
     $target_names = [];
     $source_names = [];
@@ -74,4 +66,22 @@ class ContentStorageComparer extends StorageComparer {
     }
     return false;
   }
+
+  /**
+   * Gets content data from the source and target storages.
+   */
+  protected function getContentData($collection) {
+    $source_storage = $this->getSourceStorage($collection);
+    $target_storage = $this->getTargetStorage($collection);
+    $target_names = $target_storage->listAll();
+    $source_names = $source_storage->listAll();
+    // Prime the static caches by reading all the configuration in the source
+    // and target storages.
+    $target_data = $target_storage->readMultiple($target_names);
+    $source_data = $source_storage->readMultiple($source_names);
+
+    $this->targetNames[$collection] = $target_names;
+    $this->sourceNames[$collection] = $source_names;
+  }
+
 }
