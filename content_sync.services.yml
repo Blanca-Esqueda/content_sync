@@ -9,7 +9,7 @@ services:
     class: Drupal\content_sync\Form\ContentExportForm
     arguments: ['@entity_type.manager','@content_sync.exporter','@content_sync.manager']
   content.storage.staging:
-    class: Drupal\Core\Config\FileStorage
+    class: Drupal\content_sync\Content\ContentFileStorage
     factory: Drupal\content_sync\Content\ContentFileStorageFactory::getSync
   content.storage.sync:
     alias: content.storage.staging
@@ -17,7 +17,7 @@ services:
     class: Drupal\Core\Config\CachedStorage
     arguments: ['@content.storage.active', '@cache.content']
   content.storage.active:
-    class: Drupal\Core\Config\DatabaseStorage
+    class: Drupal\content_sync\Content\ContentDatabaseStorage
     arguments: ['@database', 'cs_db_snapshot']
     public: false
     tags:

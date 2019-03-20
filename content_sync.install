@@ -17,26 +17,26 @@ function content_sync_install(){
  * Implements hook_schema().
  */
 function content_sync_schema() {
-  // Content Sync Table to use for diff.
+  // Content Sync Table - DB Snapshot
   $schema['cs_db_snapshot'] = [
-    'description' => 'The base table for configuration data.',
+    'description' => 'The base table for content data.',
       'fields' => [
       'collection' => [
-        'description' => 'Primary Key: Config object collection.',
+        'description' => 'Primary Key: Content object collection.',
         'type' => 'varchar_ascii',
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
       ],
       'name' => [
-        'description' => 'Primary Key: Config object name.',
+        'description' => 'Primary Key: Content object name.',
         'type' => 'varchar_ascii',
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
       ],
       'data' => [
-        'description' => 'A serialized configuration object data.',
+        'description' => 'A serialized content object data.',
         'type' => 'blob',
         'not null' => FALSE,
         'size' => 'big',
@@ -44,6 +44,34 @@ function content_sync_schema() {
     ],
     'primary key' => ['collection', 'name'],
   ];
+  // Content Sync Table - Files snapshot.
+  $schema['cs_files_snapshot'] = [
+    'description' => 'The base table for content data.',
+      'fields' => [
+      'collection' => [
+        'description' => 'Primary Key: Content object collection.',
+        'type' => 'varchar_ascii',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'name' => [
+        'description' => 'Primary Key: Content object name.',
+        'type' => 'varchar_ascii',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'data' => [
+        'description' => 'A serialized content object data.',
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+      ],
+    ],
+    'primary key' => ['collection', 'name'],
+  ];
+
   // Content Sync Logs Table
   $schema['cs_logs'] = [
     'description' => 'Table that contains content_sync logs.',
