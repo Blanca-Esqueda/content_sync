@@ -41,7 +41,7 @@ class ContentFileStorage implements ContentStorageInterface {
    *   (optional) The collection to store cotnent in. Defaults to the
    *   default collection.
    */
-  public function __construct($directory, $collection = StorageInterface::DEFAULT_COLLECTION) {
+  public function __construct($directory, $collection = ContentStorageInterface::DEFAULT_COLLECTION) {
     $this->directory = $directory;
     $this->collection = $collection;
 
@@ -95,7 +95,7 @@ class ContentFileStorage implements ContentStorageInterface {
   }
 
   /**
-   * Implements Drupal\Core\Config\StorageInterface::read().
+   * Implements Drupal\content_sync\Content\ContentStorageInterface::read().
    *
    * @throws \Drupal\Core\Config\UnsupportedDataTypeConfigException
    */
@@ -249,7 +249,7 @@ class ContentFileStorage implements ContentStorageInterface {
         $success = FALSE;
       }
     }
-    if ($success && $this->collection != StorageInterface::DEFAULT_COLLECTION) {
+    if ($success && $this->collection != ContentStorageInterface::DEFAULT_COLLECTION) {
       // Remove empty directories.
       if (!(new \FilesystemIterator($this->getCollectionDirectory()))->valid()) {
         drupal_rmdir($this->getCollectionDirectory());
@@ -353,7 +353,7 @@ class ContentFileStorage implements ContentStorageInterface {
    *   The directory for the collection.
    */
   protected function getCollectionDirectory() {
-    if ($this->collection == StorageInterface::DEFAULT_COLLECTION) {
+    if ($this->collection == ContentStorageInterface::DEFAULT_COLLECTION) {
       $dir = $this->directory;
     }
     else {

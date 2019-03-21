@@ -59,8 +59,8 @@ content.export_single:
   defaults:
     _title: 'Single Export'
     _form: '\Drupal\content_sync\Form\ContentSingleExportForm'
-    config_type: NULL
-    config_name: NULL
+    content_type: NULL
+    content_name: NULL
   requirements:
     _permission: 'export content'
 

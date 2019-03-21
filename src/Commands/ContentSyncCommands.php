@@ -2,33 +2,34 @@
 
 namespace Drupal\content_sync\Commands;
 
-use Drupal\content_sync\ContentSyncManagerInterface;
-use Drupal\content_sync\Exporter\ContentExporterInterface;
-use Drupal\content_sync\Form\ContentExportTrait;
-use Drupal\content_sync\Form\ContentImportTrait;
-use Drupal\content_sync\Form\ContentSync;
-use Drupal\config\StorageReplaceDataWrapper;
-use Drupal\Core\Config\ConfigManagerInterface;
-use Drupal\Core\Config\FileStorage;
-use Drupal\content_sync\Content\ContentStorageComparer;
-use Drupal\Core\Config\StorageInterface;
-use Drupal\Core\Config\TypedConfigManagerInterface;
-use Drupal\Core\DependencyInjection\DependencySerializationTrait;
-use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
-use Drupal\Core\Entity\EntityStorageException;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Extension\ModuleInstallerInterface;
-use Drupal\Core\Extension\ThemeHandlerInterface;
-use Drupal\Core\Lock\LockBackendInterface;
-use Drupal\Core\StringTranslation\StringTranslationTrait;
-use Drupal\Core\StringTranslation\TranslationInterface;
 use Drush\Commands\DrushCommands;
 use Drush\Exceptions\UserAbortException;
-use Symfony\Component\Console\Helper\Table;
+use Drupal\content_sync\ContentSyncManagerInterface;
+use Drupal\content_sync\Content\ContentStorageInterface;
+use Drupal\content_sync\Content\ContentStorageComparer;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Console\Helper\Table;
+
+
+//use Drupal\content_sync\Content\ContentFileStorage;
+//use Drupal\Core\Config\ConfigManagerInterface;
+
+//use Drupal\content_sync\Exporter\ContentExporterInterface;
+//use Drupal\content_sync\Form\ContentExportTrait;
+//use Drupal\content_sync\Form\ContentImportTrait;
+//use Drupal\content_sync\Form\ContentSync;
+
+
+//use Drupal\Core\Entity\ContentEntityInterface;
+//use Drupal\Core\Entity\EntityTypeManagerInterface;
+//use Symfony\Component\DependencyInjection\ContainerInterface;
+
+
+//use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+
+//use Drupal\content_sync\ContentSyncManagerInterface;
+//use Drupal\Core\Entity\EntityStorageException;
+
 
 /**
  * A Drush commandfile.
@@ -43,137 +44,48 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  */
 class ContentSyncCommands extends DrushCommands {
 
-  use ContentExportTrait;
-  use ContentImportTrait;
-  use DependencySerializationTrait;
-  use StringTranslationTrait;
+//  use ContentExportTrait;
+//  use ContentImportTrait;
+//  use DependencySerializationTrait;
+//  use StringTranslationTrait;
 
 
-  protected $configManager;
+  /**
+   * The sync content object.
+   *
+   * @var \Drupal\content_sync\Content\ContentStorageInterface
+   */
+  protected $syncStorage;
 
-  protected $contentStorage;
+  /**
+   * The active content object.
+   *
+   * @var \Drupal\content_sync\Content\ContentStorageInterface
+   */
+  protected $activeStorage;
 
-  protected $contentStorageSync;
-
+  /**
+   * The content sync manager.
+   *
+   * @var \Drupal\content_sync\ContentSyncManagerInterface
+   */
   protected $contentSyncManager;
-
-  protected $entityManager;
-
-  protected $entityTypeManager;
-
-  protected $contentExporter;
-
-  protected $lock;
-
-  protected $configTyped;
-
-  protected $moduleInstaller;
-
-  protected $themeHandler;
-
-  protected $stringTranslation;
-
-  protected $moduleHandler;
-
-  /**
-   * Gets the configManager.
-   *
-   * @return \Drupal\Core\Config\ConfigManagerInterface
-   *   The configManager.
-   */
-  public function getConfigManager() {
-    return $this->configManager;
-  }
-
-  /**
-   * Gets the contentStorage.
-   *
-   * @return \Drupal\Core\Config\StorageInterface
-   *   The contentStorage.
-   */
-  public function getContentStorage() {
-    return $this->contentStorage;
-  }
-
-  /**
-   * Gets the contentStorageSync.
-   *
-   * @return \Drupal\Core\Config\StorageInterface
-   *   The contentStorageSync.
-   */
-  public function getContentStorageSync() {
-    return $this->contentStorageSync;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function getEntityTypeManager() {
-    return $this->entityTypeManager;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function getContentExporter() {
-    return $this->contentExporter;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function getExportLogger() {
-    return $this->logger('content_sync');
-  }
 
   /**
    * ContentSyncCommands constructor.
    *
-   * @param \Drupal\Core\Config\ConfigManagerInterface $configManager
-   *   The configManager.
-   * @param \Drupal\Core\Config\StorageInterface $contentStorage
-   *   The contentStorage.
-   * @param \Drupal\Core\Config\StorageInterface $contentStorageSync
-   *   The contentStorageSync.
-   * @param \Drupal\content_sync\ContentSyncManagerInterface $contentSyncManager
-   *   The contentSyncManager.
-   * @param \Drupal\Core\Entity\EntityManagerInterface $entityManager
-   *   The entityManager.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entityTypeManager.
-   * @param \Drupal\content_sync\Exporter\ContentExporterInterface $content_exporter
-   *   The contentExporter.
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
-   *   The moduleHandler.
-   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $eventDispatcher
-   *   The eventDispatcher.
-   * @param \Drupal\Core\Lock\LockBackendInterface $lock
-   *   The lock.
-   * @param \Drupal\Core\Config\TypedConfigManagerInterface $configTyped
-   *   The configTyped.
-   * @param \Drupal\Core\Extension\ModuleInstallerInterface $moduleInstaller
-   *   The moduleInstaller.
-   * @param \Drupal\Core\Extension\ThemeHandlerInterface $themeHandler
-   *   The themeHandler.
-   * @param \Drupal\Core\StringTranslation\TranslationInterface $stringTranslation
-   *   The stringTranslation.
+   * @param \Drupal\content_sync\Content\ContentStorageInterface $sync_storage
+   *   The source storage.
+   * @param \Drupal\content_sync\Content\ContentStorageInterface $active_storage
+   *   The target storage.
+   * @param \Drupal\content_sync\ContentSyncManagerInterface $content_sync_manager
+   *   The content sync manager.
    */
-  public function __construct(ConfigManagerInterface $configManager, StorageInterface $contentStorage, StorageInterface $contentStorageSync, ContentSyncManagerInterface $contentSyncManager, EntityManagerInterface $entityManager, EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ModuleHandlerInterface $moduleHandler, EventDispatcherInterface $eventDispatcher, LockBackendInterface $lock, TypedConfigManagerInterface $configTyped, ModuleInstallerInterface $moduleInstaller, ThemeHandlerInterface $themeHandler, TranslationInterface $stringTranslation) {
-    parent::__construct();
-    $this->configManager = $configManager;
-    $this->contentStorage = $contentStorage;
-    $this->contentStorageSync = $contentStorageSync;
-    $this->contentSyncManager = $contentSyncManager;
-    $this->entityManager = $entityManager;
-    $this->entityTypeManager = $entity_type_manager;
-    $this->contentExporter = $content_exporter;
-    $this->moduleHandler = $moduleHandler;
-    $this->eventDispatcher = $eventDispatcher;
-    $this->lock = $lock;
-    $this->configTyped = $configTyped;
-    $this->moduleInstaller = $moduleInstaller;
-    $this->themeHandler = $themeHandler;
-    $this->stringTranslation = $stringTranslation;
+  // 
+  public function __construct(ContentStorageInterface $sync_storage, ContentStorageInterface $active_storage, ContentSyncManagerInterface $content_sync_manager) {
+    $this->syncStorage = $sync_storage;
+    $this->activeStorage = $active_storage;
+    $this->contentSyncManager = $content_sync_manager;
   }
 
   /**
@@ -181,13 +93,14 @@ class ContentSyncCommands extends DrushCommands {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('config.manager'),
-      $container->get('content.storage'),
       $container->get('content.storage.sync'),
+      $container->get('content.storage'),
       $container->get('content_sync.manager')
     );
   }
 
+
+/*
   /**
    * Import content from a content directory.
    *
@@ -205,7 +118,7 @@ class ContentSyncCommands extends DrushCommands {
    * @option skiplist skip the change list before proceed with the import.
    * @usage drush content-sync-import.
    * @aliases csi,content-sync-import
-   */
+   * /
   public function import($label = NULL, array $options = [
     'entity-types' => '',
     'uuids' => '',
@@ -280,7 +193,7 @@ class ContentSyncCommands extends DrushCommands {
     }
   }
 
-
+*/
   /**
    * Export Drupal content to a directory.
    *
@@ -312,7 +225,8 @@ class ContentSyncCommands extends DrushCommands {
     'skiplist' => FALSE ]) {
 
     //Generate comparer with filters.
-    $storage_comparer = new ContentStorageComparer($this->contentStorage, $this->contentStorageSync, $this->configManager);
+    $storage_comparer = new ContentStorageComparer($this->activeStorage, $this->syncStorage);
+
     $change_list = [];
     $collections = $storage_comparer->getAllCollectionNames();
     if (!empty($options['entity-types'])){
@@ -356,7 +270,7 @@ class ContentSyncCommands extends DrushCommands {
         throw new UserAbortException();
       }
     }
-
+/*
     //Process the Export.
     $entities_list = [];
     foreach ($change_list as $collection => $changes) {
@@ -394,8 +308,9 @@ class ContentSyncCommands extends DrushCommands {
          'include_dependencies' => $options['include-dependencies']]);
       batch_set($batch);
       drush_backend_batch_process();
-    }
+    }*/
   }
+
 
   /**
    * Builds a table of content changes.
@@ -455,17 +370,18 @@ class ContentSyncCommands extends DrushCommands {
     return $table;
   }
 
-  /**
+  /* *
    * Processes 'files' option.
    *
    * @param array $options
    *   The command options.
    * @return string
    *   Processed 'files' option value.
-   */
+   * /
   public static function processFilesOption($options) {
     $include_files = !empty($options['files']) ? $options['files'] : 'folder';
     if (!in_array($include_files, ['folder', 'base64'])) $include_files = 'none';
     return $include_files;
   }
+  */
 }

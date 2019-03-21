@@ -3,7 +3,6 @@
 namespace Drupal\content_sync\Content;
 
 use Drupal\Core\Cache\MemoryBackend;
-use Drupal\Core\Config\Entity\ConfigDependencyManager;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 
 /**
@@ -39,13 +38,6 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
    * @var \Drupal\content_sync\Content\ContentStorageInterface[]
    */
   protected $targetStorages;
-
-  /**
-   * The content manager.
-   *
-   * @var \Drupal\Core\Config\ConfigManagerInterface    //TODO
-   */
-  protected $configManager;
 
   /**
    * List of changes to between the source storage and the target storage.
@@ -95,32 +87,29 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
    *   Storage object used to read content.
    * @param \Drupal\content_sync\Content\ContentStorageInterface $target_storage
    *   Storage object used to write content.
-   * @param \Drupal\Core\Config\ConfigManagerInterface $config_manager    //TODO
-   *   The configuration manager.
    */
-  public function __construct(StorageInterface $source_storage, StorageInterface $target_storage, ConfigManagerInterface $config_manager) {
+  public function __construct(ContentStorageInterface $source_storage, ContentStorageInterface $target_storage) {
     // Wrap the storages in a static cache so that multiple reads of the same
-    // raw configuration object are not costly.
+    // raw content object are not costly.
     $this->sourceCacheStorage = new MemoryBackend();
-    $this->sourceStorage = new CachedStorage(
+    $this->sourceStorage = new ContentCachedStorage(
       $source_storage,
       $this->sourceCacheStorage
     );
     $this->targetCacheStorage = new MemoryBackend();
-    $this->targetStorage = new CachedStorage(
+    $this->targetStorage = new ContentCachedStorage(
       $target_storage,
       $this->targetCacheStorage
     );
-    $this->configManager = $config_manager;
-    $this->changelist[StorageInterface::DEFAULT_COLLECTION] = $this->getEmptyChangelist();
+    $this->changelist[ContentStorageInterface::DEFAULT_COLLECTION] = $this->getEmptyChangelist();
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getSourceStorage($collection = StorageInterface::DEFAULT_COLLECTION) {
+  public function getSourceStorage($collection = ContentStorageInterface::DEFAULT_COLLECTION) {
     if (!isset($this->sourceStorages[$collection])) {
-      if ($collection == StorageInterface::DEFAULT_COLLECTION) {
+      if ($collection == ContentStorageInterface::DEFAULT_COLLECTION) {
         $this->sourceStorages[$collection] = $this->sourceStorage;
       }
       else {
@@ -133,9 +122,9 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
   /**
    * {@inheritdoc}
    */
-  public function getTargetStorage($collection = StorageInterface::DEFAULT_COLLECTION) {
+  public function getTargetStorage($collection = ContentStorageInterface::DEFAULT_COLLECTION) {
     if (!isset($this->targetStorages[$collection])) {
-      if ($collection == StorageInterface::DEFAULT_COLLECTION) {
+      if ($collection == ContentStorageInterface::DEFAULT_COLLECTION) {
         $this->targetStorages[$collection] = $this->targetStorage;
       }
       else {
@@ -160,7 +149,7 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
   /**
    * {@inheritdoc}
    */
-  public function getChangelist($op = NULL, $collection = StorageInterface::DEFAULT_COLLECTION) {
+  public function getChangelist($op = NULL, $collection = ContentStorageInterface::DEFAULT_COLLECTION) {
     if ($op) {
       return $this->changelist[$collection][$op];
     }
@@ -201,7 +190,7 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
   public function createChangelist() {
     foreach ($this->getAllCollectionNames() as $collection) {
       $this->changelist[$collection] = $this->getEmptyChangelist();
-      $this->getAndSortConfigData($collection);
+      $this->getContentData($collection);
       $this->addChangelistCreate($collection);
       $this->addChangelistUpdate($collection);
       $this->addChangelistDelete($collection);
@@ -294,9 +283,9 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
    * {@inheritdoc}
    */
   public function reset() {
-    $this->changelist = [StorageInterface::DEFAULT_COLLECTION => $this->getEmptyChangelist()];
+    $this->changelist = [ContentStorageInterface::DEFAULT_COLLECTION => $this->getEmptyChangelist()];
     $this->sourceNames = $this->targetNames = [];
-    // Reset the static configuration data caches.
+    // Reset the static content data caches.
     $this->sourceCacheStorage->deleteAll();
     $this->targetCacheStorage->deleteAll();
     return $this->createChangelist();
@@ -323,31 +312,6 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
     $source = $this->sourceStorage->read('system.site');
     $target = $this->targetStorage->read('system.site');
     return $source['uuid'] === $target['uuid'];
-  }
-
-  /**
-   * Gets and sorts configuration data from the source and target storages.
-   */
-  protected function getAndSortConfigData($collection) {
-    $source_storage = $this->getSourceStorage($collection);
-    $target_storage = $this->getTargetStorage($collection);
-    $target_names = $target_storage->listAll();
-    $source_names = $source_storage->listAll();
-    // Prime the static caches by reading all the content in the source
-    // and target storages.
-    $target_data = $target_storage->readMultiple($target_names);
-    $source_data = $source_storage->readMultiple($source_names);
-    // If the collection only supports simple content do not use
-    // configuration dependencies.
-    if ($collection == StorageInterface::DEFAULT_COLLECTION) {
-      $dependency_manager = new ConfigDependencyManager();
-      $this->targetNames[$collection] = $dependency_manager->setData($target_data)->sortAll();
-      $this->sourceNames[$collection] = $dependency_manager->setData($source_data)->sortAll();
-    }
-    else {
-      $this->targetNames[$collection] = $target_names;
-      $this->sourceNames[$collection] = $source_names;
-    }
   }
 
   /**
@@ -405,7 +369,7 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
   public function getAllCollectionNames($include_default = TRUE) {
     $collections = array_unique(array_merge($this->sourceStorage->getAllCollectionNames(), $this->targetStorage->getAllCollectionNames()));
     if ($include_default) {
-      array_unshift($collections, StorageInterface::DEFAULT_COLLECTION);
+      array_unshift($collections, ContentStorageInterface::DEFAULT_COLLECTION);
     }
     return $collections;
   }

@@ -17,7 +17,7 @@ interface ContentStorageComparerInterface {
    * @return Drupal\content_sync\Content\ContentStorageInterface
    *   Storage object used to read content.
    */
-  public function getSourceStorage($collection = StorageInterface::DEFAULT_COLLECTION);
+  public function getSourceStorage($collection = ContentStorageInterface::DEFAULT_COLLECTION);
 
   /**
    * Gets the content target storage.
@@ -29,7 +29,7 @@ interface ContentStorageComparerInterface {
    * @return Drupal\content_sync\Content\ContentStorageInterface
    *   Storage object used to write content.
    */
-  public function getTargetStorage($collection = StorageInterface::DEFAULT_COLLECTION);
+  public function getTargetStorage($collection = ContentStorageInterface::DEFAULT_COLLECTION);
 
   /**
    * Gets an empty changelist.
@@ -52,7 +52,7 @@ interface ContentStorageComparerInterface {
    * @return array
    *   An array of content changes.
    */
-  public function getChangelist($op = NULL, $collection = StorageInterface::DEFAULT_COLLECTION);
+  public function getChangelist($op = NULL, $collection = ContentStorageInterface::DEFAULT_COLLECTION);
 
   /**
    * Recalculates the differences.

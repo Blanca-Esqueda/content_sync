@@ -39,7 +39,7 @@ class ContentDatabaseStorage implements ContentStorageInterface {
    *
    * @var string
    */
-  protected $collection = StorageInterface::DEFAULT_COLLECTION;
+  protected $collection = ContentStorageInterface::DEFAULT_COLLECTION;
 
   /**
    * Constructs a new DatabaseStorage.
@@ -54,7 +54,7 @@ class ContentDatabaseStorage implements ContentStorageInterface {
    *   (optional) The collection to store content in. Defaults to the
    *   default collection.
    */
-  public function __construct(Connection $connection, $table, array $options = [], $collection = StorageInterface::DEFAULT_COLLECTION) {
+  public function __construct(Connection $connection, $table, array $options = [], $collection = ContentStorageInterface::DEFAULT_COLLECTION) {
     $this->connection = $connection;
     $this->table = $table;
     $this->options = $options;
@@ -319,7 +319,7 @@ class ContentDatabaseStorage implements ContentStorageInterface {
   public function getAllCollectionNames() {
     try {
       return $this->connection->query('SELECT DISTINCT collection FROM {' . $this->connection->escapeTable($this->table) . '} WHERE collection <> :collection ORDER by collection', [
-          ':collection' => StorageInterface::DEFAULT_COLLECTION,
+          ':collection' => ContentStorageInterface::DEFAULT_COLLECTION,
         ]
       )->fetchCol();
     }

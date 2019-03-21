@@ -14,7 +14,7 @@ services:
   content.storage.sync:
     alias: content.storage.staging
   content.storage:
-    class: Drupal\Core\Config\CachedStorage
+    class: Drupal\content_sync\Content\ContentCachedStorage
     arguments: ['@content.storage.active', '@cache.content']
   content.storage.active:
     class: Drupal\content_sync\Content\ContentDatabaseStorage
