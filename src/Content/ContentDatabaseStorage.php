@@ -2,6 +2,7 @@
 
 namespace Drupal\content_sync\Content;
 
+use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\SchemaObjectExistsException;

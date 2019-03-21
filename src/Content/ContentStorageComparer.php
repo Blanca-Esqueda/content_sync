@@ -3,7 +3,10 @@
 namespace Drupal\content_sync\Content;
 
 use Drupal\Core\Cache\MemoryBackend;
+use Drupal\Core\Config\CachedStorage;
+use Drupal\Core\Config\ConfigManagerInterface;
 use Drupal\Core\Config\Entity\ConfigDependencyManager;
+use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 
 /**
