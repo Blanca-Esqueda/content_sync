@@ -92,16 +92,19 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
     // Wrap the storages in a static cache so that multiple reads of the same
     // raw content object are not costly.
     $this->sourceCacheStorage = new MemoryBackend();
-    $this->sourceStorage = new ContentCachedStorage(
-      $source_storage,
-      $this->sourceCacheStorage
-    );
+    $this->sourceStorage = new ContentCachedStorage($source_storage, $this->sourceCacheStorage);
     $this->targetCacheStorage = new MemoryBackend();
-    $this->targetStorage = new ContentCachedStorage(
-      $target_storage,
-      $this->targetCacheStorage
-    );
+    $this->targetStorage = new ContentCachedStorage($target_storage, $this->targetCacheStorage);
     $this->changelist[ContentStorageInterface::DEFAULT_COLLECTION] = $this->getEmptyChangelist();
+
+    // Reset the table storing the files content.
+    if (method_exists( $source_storage, 'deleteFilesDB')){
+       $source_storage->deleteFilesDB();
+    }
+    if (method_exists( $target_storage, 'deleteFilesDB')){
+       $target_storage->deleteFilesDB();
+    }
+
   }
 
   /**
@@ -189,11 +192,7 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
    */
   public function createChangelist() {
     foreach ($this->getAllCollectionNames() as $collection) {
-      $this->changelist[$collection] = $this->getEmptyChangelist();
-      $this->getContentData($collection);
-      $this->addChangelistCreate($collection);
-      $this->addChangelistUpdate($collection);
-      $this->addChangelistDelete($collection);
+      $this->createChangelistbyCollection($collection);
     }
     return $this;
   }
@@ -320,15 +319,17 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
   protected function getContentData($collection) {
     $source_storage = $this->getSourceStorage($collection);
     $target_storage = $this->getTargetStorage($collection);
-    $target_names = $target_storage->listAll();
     $source_names = $source_storage->listAll();
-    // Prime the static caches by reading all the conentent in the source
+    $target_names = $target_storage->listAll();
+    
+    // Prime the static caches by reading all the content in the source
     // and target storages.
+    //$source_data = $source_storage->readMultiple($source_names);
     $target_data = $target_storage->readMultiple($target_names);
-    $source_data = $source_storage->readMultiple($source_names);
 
-    $this->targetNames[$collection] = $target_names;
     $this->sourceNames[$collection] = $source_names;
+    $this->targetNames[$collection] = $target_names;
+    
   }
 
   

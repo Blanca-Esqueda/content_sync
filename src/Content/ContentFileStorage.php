@@ -6,17 +6,30 @@ use Drupal\Component\FileCache\FileCacheFactory;
 use Drupal\Component\Serialization\Exception\InvalidDataTypeException;
 use Drupal\Core\Serialization\Yaml;
 
+use Drupal\Core\Database\Database;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\SchemaObjectExistsException;
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
+
+
 /**
  * Defines the file storage.
  */
 class ContentFileStorage implements ContentStorageInterface {
 
   /**
-   * The storage collection.
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $connection;
+
+  /**
+   * The database table name.
    *
    * @var string
    */
-  protected $collection;
+  protected $table;
 
   /**
    * The filesystem path for content objects.
@@ -26,36 +39,75 @@ class ContentFileStorage implements ContentStorageInterface {
   protected $directory = '';
 
   /**
+   * Additional database connection options to use in queries.
+   *
+   * @var array
+   */
+  protected $options = [];
+
+  /**
+   * The storage collection.
+   *
+   * @var string
+   */
+  protected $collection;
+  
+  /**
    * The file cache object.
    *
    * @var \Drupal\Component\FileCache\FileCacheInterface
    */
   protected $fileCache;
 
+
   /**
-   * Constructs a new FileStorage.
+   * Constructs a new FileStorage & DatabaseStorage.
    *
+   * @param \Drupal\Core\Database\Connection $connection
+   *   A Database connection to use for reading and writing content data.
+   * @param string $table
+   *   A database table name to store content data in.
    * @param string $directory
    *   A directory path to use for reading and writing of content files.
    * @param string $collection
-   *   (optional) The collection to store cotnent in. Defaults to the
+   *   (optional) The collection to store content in. Defaults to the
    *   default collection.
+   * @param array $options
+   *   (optional) Any additional database connection options to use in queries.
    */
-  public function __construct($directory, $collection = ContentStorageInterface::DEFAULT_COLLECTION) {
-    $this->directory = $directory;
+  public function __construct(Connection $connection, $table, $directory = '', $collection = ContentStorageInterface::DEFAULT_COLLECTION, array $options = []) {
+    $this->connection = $connection;
+    $this->table = $table;
+    $this->directory = content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities";
     $this->collection = $collection;
-
+    $this->options = $options;
+    // $this->directory = $directory;
     // Use a NULL File Cache backend by default. This will ensure only the
     // internal static caching of FileCache is used and thus avoids blowing up
     // the APCu cache.
     $this->fileCache = FileCacheFactory::get('config', ['cache_backend_class' => NULL]);
+ }
+
+
+  /**
+   * Delete the cs_files_table
+   *
+   * @throws PDOException
+   *
+   * @todo Ignore replica targets for data manipulation operations.
+   */
+  public function deleteFilesDB() {
+    $options = ['return' => Database::RETURN_AFFECTED] + $this->options;
+    return (bool) $this->connection->delete($this->table, $options)
+      ->execute();
   }
+
 
   /**
    * Returns the path to the content file.
    *
    * @return string
-   *   The path to the cotnent file.
+   *   The path to the content file.
    */
   public function getFilePath($name) {
     return $this->getCollectionDirectory() . '/' . $name . '.' . static::getFileExtension();
@@ -109,14 +161,26 @@ class ContentFileStorage implements ContentStorageInterface {
       return $data;
     }
 
-    $data = file_get_contents($filepath);
+    $data_content = file_get_contents($filepath);
     try {
-      $data = $this->decode($data);
+      $data = $this->decode($data_content);
     }
-    catch (InvalidDataTypeException $e) {
+    catch (InvalidDataTypeException $e) {   //TODO
       throw new UnsupportedDataTypeConfigException('Invalid data type in content ' . $name . ', found in file' . $filepath . ' : ' . $e->getMessage());
     }
-    $this->fileCache->set($filepath, $data);
+    
+    $this->dbWrite($name, $data_content);
+    try {
+      $this->fileCache->set($filepath, $data);
+    }
+    catch (\Exception $e) {
+      // If there was an exception, try to create the table.
+      if ($this->ensureTableExists()) {
+        $this->dbWrite($name, $data_content);
+      }
+      // Some other failure that we can not recover from.
+      throw $e;
+    }
 
     return $data;
   }
@@ -133,6 +197,25 @@ class ContentFileStorage implements ContentStorageInterface {
     }
     return $list;
   }
+
+  /**
+   * Helper method so we can re-try a db write.
+   *
+   * @param string $name
+   *   The content name.
+   * @param string $data
+   *   The content data, already dumped to a string.
+   *
+   * @return bool
+   */
+  protected function dbWrite($name, $data) {
+    $options = ['return' => Database::RETURN_AFFECTED] + $this->options;
+    return (bool) $this->connection->merge($this->table, $options)
+      ->keys(['collection', 'name'], [$this->collection, $name])
+      ->fields(['data' => $data])
+      ->execute();
+  }
+
 
   /**
    * {@inheritdoc}
@@ -163,6 +246,7 @@ class ContentFileStorage implements ContentStorageInterface {
 
     return TRUE;
   }
+
 
   /**
    * {@inheritdoc}
@@ -263,6 +347,8 @@ class ContentFileStorage implements ContentStorageInterface {
    */
   public function createCollection($collection) {
     return new static(
+      $this->connection,
+      $this->table,
       $this->directory,
       $collection
     );
@@ -426,7 +512,5 @@ class ContentFileStorage implements ContentStorageInterface {
     ];
     return $schema;
   }
-
-
 
 }

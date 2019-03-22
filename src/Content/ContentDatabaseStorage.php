@@ -151,69 +151,6 @@ class ContentDatabaseStorage implements ContentStorageInterface {
   }
 
   /**
-   * Check if the content table exists and create it if not.
-   *
-   * @return bool
-   *   TRUE if the table was created, FALSE otherwise.
-   *
-   * @throws \Drupal\Core\Config\StorageException   //TODO
-   *   If a database error occurs.
-   */
-  protected function ensureTableExists() {
-    try {
-      if (!$this->connection->schema()->tableExists($this->table)) {
-        $this->connection->schema()->createTable($this->table, static::schemaDefinition());
-        return TRUE;
-      }
-    }
-    // If another process has already created the content table, attempting to
-    // recreate it will throw an exception. In this case just catch the
-    // exception and do nothing.
-    catch (SchemaObjectExistsException $e) {
-      return TRUE;
-    }
-    catch (\Exception $e) {
-      throw new StorageException($e->getMessage(), NULL, $e);
-    }
-    return FALSE;
-  }
-
-  /**
-   * Defines the schema for the content table.
-   *
-   * @internal
-   */
-  protected static function schemaDefinition() {
-    $schema = [
-      'description' => 'The base table for content data.',
-      'fields' => [
-        'collection' => [
-          'description' => 'Primary Key: Content object collection.',
-          'type' => 'varchar_ascii',
-          'length' => 255,
-          'not null' => TRUE,
-          'default' => '',
-        ],
-        'name' => [
-          'description' => 'Primary Key: Content object name.',
-          'type' => 'varchar_ascii',
-          'length' => 255,
-          'not null' => TRUE,
-          'default' => '',
-        ],
-        'data' => [
-          'description' => 'A serialized content object data.',
-          'type' => 'blob',
-          'not null' => FALSE,
-          'size' => 'big',
-        ],
-      ],
-      'primary key' => ['collection', 'name'],
-    ];
-    return $schema;
-  }
-
-  /**
    * Implements Drupal\content_sync\Content\ContentStorageInterface::delete().
    *
    * @throws PDOException
@@ -402,4 +339,68 @@ class ContentDatabaseStorage implements ContentStorageInterface {
       ->condition('name', $name)
       ->execute();
   }
+
+  /**
+   * Check if the content table exists and create it if not.
+   *
+   * @return bool
+   *   TRUE if the table was created, FALSE otherwise.
+   *
+   * @throws \Drupal\Core\Config\StorageException   //TODO
+   *   If a database error occurs.
+   */
+  protected function ensureTableExists() {
+    try {
+      if (!$this->connection->schema()->tableExists($this->table)) {
+        $this->connection->schema()->createTable($this->table, static::schemaDefinition());
+        return TRUE;
+      }
+    }
+    // If another process has already created the content table, attempting to
+    // recreate it will throw an exception. In this case just catch the
+    // exception and do nothing.
+    catch (SchemaObjectExistsException $e) {
+      return TRUE;
+    }
+    catch (\Exception $e) {
+      throw new StorageException($e->getMessage(), NULL, $e);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Defines the schema for the content table.
+   *
+   * @internal
+   */
+  protected static function schemaDefinition() {
+    $schema = [
+      'description' => 'The base table for content data.',
+      'fields' => [
+        'collection' => [
+          'description' => 'Primary Key: Content object collection.',
+          'type' => 'varchar_ascii',
+          'length' => 255,
+          'not null' => TRUE,
+          'default' => '',
+        ],
+        'name' => [
+          'description' => 'Primary Key: Content object name.',
+          'type' => 'varchar_ascii',
+          'length' => 255,
+          'not null' => TRUE,
+          'default' => '',
+        ],
+        'data' => [
+          'description' => 'A serialized content object data.',
+          'type' => 'blob',
+          'not null' => FALSE,
+          'size' => 'big',
+        ],
+      ],
+      'primary key' => ['collection', 'name'],
+    ];
+    return $schema;
+  }
+
 }

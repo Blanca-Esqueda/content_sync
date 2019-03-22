@@ -215,7 +215,7 @@ class ContentSyncCommands extends DrushCommands {
    * @usage drush content-sync-export.
    * @aliases cse,content-sync-export.
    */
-  //TODO - exclude content-types -- Add snapshoot.
+  //TODO - exclude content-types -- Add snapshoot -- label for multiple folders
   public function export($label = NULL, array $options = [
     'entity-types' => '',
     'uuids' => '',
@@ -224,8 +224,16 @@ class ContentSyncCommands extends DrushCommands {
     'include-dependencies' => FALSE,
     'skiplist' => FALSE ]) {
 
+    //Create the content snapshot.
+    //$comparer_export = Drupal::service('content_sync.comparer');
+    //$change_list = $cs_snapshoot->snapshot();
+
+
+
     //Generate comparer with filters.
     $storage_comparer = new ContentStorageComparer($this->activeStorage, $this->syncStorage);
+
+    
 
     $change_list = [];
     $collections = $storage_comparer->getAllCollectionNames();
