@@ -116,7 +116,7 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
             $entity->uuid(),
           ];
           $dependency = implode(ContentSyncManager::DELIMITER, $ids);
-          if (!in_array($dependency, $dependencies)) {
+          if (!$this->inDependencies($dependency, $dependencies)) {
             $dependencies[$entity->getEntityTypeId()][] = $dependency;
           }
         }
@@ -128,6 +128,24 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
       $this->decorateNormalization($normalized_data, $object, $format, $context);
     }
     return $normalized_data;
+  }
+
+  /**
+   * Checks if a dependency is in a dependencies nested array.
+   *
+   * @param string $dependency
+   *   An entity identifier.
+   * @param $dependencies
+   *   A nested array of dependencies.
+   *
+   * @return bool
+   */
+  protected function inDependencies($dependency, $dependencies) {
+    list($entity_type_id, $bundle, $uuid) = explode('.', $dependency);
+    if (isset($dependencies[$entity_type_id])) {
+      if (in_array($dependency, $dependencies[$entity_type_id])) return TRUE;
+    }
+    return FALSE;
   }
 
   /**
