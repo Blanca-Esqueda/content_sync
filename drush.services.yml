@@ -1,6 +1,6 @@
 services:
   content_sync.commands:
     class: \Drupal\content_sync\Commands\ContentSyncCommands
-    arguments: ['@content.storage.sync', '@content.storage', '@content_sync.manager']
+    arguments: ['@content_sync.controller']
     tags:
       - { name: drush.command }

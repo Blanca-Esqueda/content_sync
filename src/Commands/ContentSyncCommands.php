@@ -4,12 +4,11 @@ namespace Drupal\content_sync\Commands;
 
 use Drush\Commands\DrushCommands;
 use Drush\Exceptions\UserAbortException;
-use Drupal\content_sync\ContentSyncManagerInterface;
-use Drupal\content_sync\Content\ContentStorageInterface;
-use Drupal\content_sync\Content\ContentStorageComparer;
+use Drupal\content_sync\Controller\ContentSyncController;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Helper\Table;
 
+//TODO - exclude content-types -- Add snapshoot -- label for multiple folders
 
 //use Drupal\content_sync\Content\ContentFileStorage;
 //use Drupal\Core\Config\ConfigManagerInterface;
@@ -49,43 +48,21 @@ class ContentSyncCommands extends DrushCommands {
 //  use DependencySerializationTrait;
 //  use StringTranslationTrait;
 
-
   /**
-   * The sync content object.
+   * The content sync controller.
    *
-   * @var \Drupal\content_sync\Content\ContentStorageInterface
+   * @var \Drupal\content_sync\Controller\ContentSyncController
    */
-  protected $syncStorage;
-
-  /**
-   * The active content object.
-   *
-   * @var \Drupal\content_sync\Content\ContentStorageInterface
-   */
-  protected $activeStorage;
-
-  /**
-   * The content sync manager.
-   *
-   * @var \Drupal\content_sync\ContentSyncManagerInterface
-   */
-  protected $contentSyncManager;
+  protected $contentController;
 
   /**
    * ContentSyncCommands constructor.
    *
-   * @param \Drupal\content_sync\Content\ContentStorageInterface $sync_storage
-   *   The source storage.
-   * @param \Drupal\content_sync\Content\ContentStorageInterface $active_storage
-   *   The target storage.
-   * @param \Drupal\content_sync\ContentSyncManagerInterface $content_sync_manager
-   *   The content sync manager.
+   * @param \Drupal\content_sync\Controller\ContentSyncController $contentController;
+   *   The content controller.
    */
-  // 
-  public function __construct(ContentStorageInterface $sync_storage, ContentStorageInterface $active_storage, ContentSyncManagerInterface $content_sync_manager) {
-    $this->syncStorage = $sync_storage;
-    $this->activeStorage = $active_storage;
-    $this->contentSyncManager = $content_sync_manager;
+  public function __construct(ContentSyncController $contentController) {
+    $this->contentController = $contentController;
   }
 
   /**
@@ -93,9 +70,7 @@ class ContentSyncCommands extends DrushCommands {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('content.storage.sync'),
-      $container->get('content.storage'),
-      $container->get('content_sync.manager')
+      $container->get('content_sync.controller')
     );
   }
 
@@ -215,7 +190,6 @@ class ContentSyncCommands extends DrushCommands {
    * @usage drush content-sync-export.
    * @aliases cse,content-sync-export.
    */
-  //TODO - exclude content-types -- Add snapshoot -- label for multiple folders
   public function export($label = NULL, array $options = [
     'entity-types' => '',
     'uuids' => '',
@@ -224,47 +198,7 @@ class ContentSyncCommands extends DrushCommands {
     'include-dependencies' => FALSE,
     'skiplist' => FALSE ]) {
 
-    //Create the content snapshot.
-    //$comparer_export = Drupal::service('content_sync.comparer');
-    //$change_list = $cs_snapshoot->snapshot();
-
-
-
-    //Generate comparer with filters.
-    $storage_comparer = new ContentStorageComparer($this->activeStorage, $this->syncStorage);
-
-    
-
-    $change_list = [];
-    $collections = $storage_comparer->getAllCollectionNames();
-    if (!empty($options['entity-types'])){
-      $entity_types = explode(',', $options['entity-types']);
-      $match_collections = [];
-      foreach ($entity_types as $entity_type){
-        $match_collections = $match_collections + preg_grep('/^'.$entity_type.'/', $collections);
-      }
-      $collections = $match_collections;
-    }
-    foreach ($collections as $collection){
-      if (!empty($options['uuids'])){
-        $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
-      }else{
-        $storage_comparer->createChangelistbyCollection($collection);
-      }
-      if (!empty($options['actions'])){
-        $actions = explode(',', $options['actions']);
-        foreach ($actions as $op){
-          if (in_array($op, ['create','update','delete'])){
-            $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
-          }
-        }
-      }else{
-        $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
-      }
-      $change_list = array_map('array_filter', $change_list);
-      $change_list = array_filter($change_list);
-    }
-    unset($change_list['']);
+    $change_list = $this->contentController->exportChangeList($options);
 
     // Display the change list.
     if (empty($options['skiplist'])){
@@ -278,45 +212,8 @@ class ContentSyncCommands extends DrushCommands {
         throw new UserAbortException();
       }
     }
-/*
-    //Process the Export.
-    $entities_list = [];
-    foreach ($change_list as $collection => $changes) {
-      //$storage_comparer->getTargetStorage($collection)->deleteAll();
-      foreach ($changes as $change => $contents) {
-        switch ($change) {
-          case 'delete':
-            foreach ($contents as $content) {
-              $storage_comparer->getTargetStorage($collection)->delete($content);
-            }
-            break;
-          case 'update':
-          case 'create':
-            foreach ($contents as $content) {
-              //$data = $storage_comparer->getSourceStorage($collection)->read($content);
-              //$storage_comparer->getTargetStorage($collection)->write($content, $data);
-              $entity = explode('.', $content);
-              $entities_list[] = [
-                'entity_type' => $entity[0],
-                'entity_uuid' => $entity[2],
-              ];
-            }
-            break;
-        }
-      }
-    }
-    // Files options
-    $include_files = self::processFilesOption($options);
 
-    // Set the Export Batch
-    if (!empty($entities_list)) {
-      $batch = $this->generateExportBatch($entities_list,
-        ['export_type' => 'folder',
-         'include_files' => $include_files,
-         'include_dependencies' => $options['include-dependencies']]);
-      batch_set($batch);
-      drush_backend_batch_process();
-    }*/
+    $this->contentController->processExport($change_list, $options);
   }
 
 

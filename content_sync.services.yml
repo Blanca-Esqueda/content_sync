@@ -86,3 +86,6 @@ services:
       # @todo Find a better way for this in https://www.drupal.org/node/2575761.
       - { name: normalizer, priority: 9 }
     arguments: ['@entity.repository']
+  content_sync.controller:
+    class: Drupal\content_sync\Controller\ContentSyncController
+    arguments: ['@content.storage.sync','@content.storage.active','@content_sync.manager', '@diff.formatter']

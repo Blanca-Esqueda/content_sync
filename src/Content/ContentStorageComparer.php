@@ -375,4 +375,48 @@ class ContentStorageComparer implements ContentStorageComparerInterface {
     return $collections;
   }
 
+
+  /**
+   * {@inheritdoc}
+   *
+   * @param string $options
+   * entity-types, a list of entity type names separated by commas.
+   * uuids, a list of UUIDs separated by commas.
+   * actions, a list of Actions separated by commas.
+   *
+   */
+  public function filterChangeList($options = TRUE) {
+    $change_list = [];
+    $collections = $this->getAllCollectionNames();
+    if (!empty($options['entity-types'])){
+      $entity_types = explode(',', $options['entity-types']);
+      $match_collections = [];
+      foreach ($entity_types as $entity_type){
+        $match_collections = $match_collections + preg_grep('/^'.$entity_type.'/', $collections);
+      }
+      $collections = $match_collections;
+    }
+    foreach ($collections as $collection){
+      if (!empty($options['uuids'])){
+        $this->createChangelistbyCollectionAndNames($collection, $options['uuids']);
+      }else{
+        $this->createChangelistbyCollection($collection);
+      }
+      if (!empty($options['actions'])){
+        $actions = explode(',', $options['actions']);
+        foreach ($actions as $op){
+          if (in_array($op, ['create','update','delete'])){
+            $change_list[$collection][$op] = $this->getChangelist($op, $collection);
+          }
+        }
+      }else{
+        $change_list[$collection] = $this->getChangelist(NULL, $collection);
+      }
+      $change_list = array_map('array_filter', $change_list);
+      $change_list = array_filter($change_list);
+    }
+    unset($change_list['']);
+    return $change_list;
+  }
+
 }

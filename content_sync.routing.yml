@@ -9,7 +9,7 @@ content.sync:
 content.diff:
   path: '/admin/config/development/content/sync/diff/{source_name}/{target_name}'
   defaults:
-    _controller: '\Drupal\content_sync\Controller\ContentController::diff'
+    _controller: '\Drupal\content_sync\Controller\ContentSyncController::diff'
     target_name: NULL
   requirements:
     _permission: 'synchronize content'
@@ -17,7 +17,7 @@ content.diff:
 content.diff_collection:
   path: '/admin/config/development/content/sync/diff_collection/{collection}/{source_name}/{target_name}'
   defaults:
-    _controller: '\Drupal\content_sync\Controller\ContentController::diff'
+    _controller: '\Drupal\content_sync\Controller\ContentSyncController::diff'
     target_name: NULL
   requirements:
     _permission: 'synchronize content'
@@ -67,7 +67,7 @@ content.export_single:
 content.export_download:
   path: '/admin/config/development/content/export/download'
   defaults:
-    _controller: '\Drupal\content_sync\Controller\ContentController::downloadExport'
+    _controller: '\Drupal\content_sync\Controller\ContentSyncController::downloadExport'
   requirements:
     _permission: 'export content'
 
