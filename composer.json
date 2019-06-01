@@ -35,6 +35,9 @@
   "license": "GPL-2.0+",
   "minimum-stability": "dev",
   "suggest": {},
+  "require": {
+    "drupal/core": "^8.6.10"
+  },
   "extra": {
     "drush": {
       "services": {
