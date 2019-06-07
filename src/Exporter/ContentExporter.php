@@ -41,7 +41,7 @@ class ContentExporter implements ContentExporterInterface {
 
     // Include translations to the normalized entity
     $yaml_parsed = Yaml::decode($normalized_entity);
-    $lang_default = \Drupal::languageManager()->getCurrentLanguage()->getId();
+    $lang_default = $entity->language()->getId();
     foreach ($entity->getTranslationLanguages() as $langcode => $language) {
       // Verify that it is not the default langcode.
       if ( $langcode != $lang_default ) {
