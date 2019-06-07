@@ -79,49 +79,54 @@ class ContentImporter implements ContentImporterInterface {
 
     // Include Translations
     if ($entity){
-      $lang_default = $entity->langcode->value;
-      // Remove translations if they are in the import data then they would be re-inserted.
-      foreach ($entity->getTranslationLanguages() as $langcode => $language) {
-        // Verify that it is not the default langcode.
-        if ( $langcode != $lang_default ) {
-          $entity->removeTranslation($langcode);
-        }
-      }
-      // Save entity to make sure translations are removed.
-      $entity->save();
       if ( isset($entity_translations) && is_array($entity_translations) ) {
-        $site_languages = \Drupal::languageManager()->getLanguages();
-        foreach ($site_languages as $langcode => $language) {
-          if(isset($entity_translations[$langcode])){
-            $translation = $entity_translations[$langcode];
-            // Add translation only if it is not the default language
-            if ( $langcode != $lang_default ) {
-              // Denormalize
-              $translation = $this->serializer->denormalize($translation, $entity_type->getClass(), $this->format, $context);
-              // Add translation
-              $entity_translation = $entity->addTranslation($langcode);
-              // Get fields definitions
-              $fields = $translation->getFieldDefinitions();
-              foreach ($translation as $itemID => $item) {
-                if ($entity_translation->hasField($itemID)){
-                  if ($fields[$itemID]->isTranslatable() == TRUE){
-                    $entity_translation->$itemID->setValue($item->getValue());
-                  }
-                }
-              }
-              // Avoid issues updating revisions.
-              if ($entity_translation->getEntityType()->hasKey('revision')) {
-                $entity_translation->updateLoadedRevisionId();
-                $entity_translation->setNewRevision(FALSE);
-              }
-              // Save the entity translation.
-              $entity_translation->save();
-            }
-          }
-        }
+        $this->updateTranslation($entity, $entity_type, $entity_translations, $context);
       }
     }
     return $entity;
+  }
+
+  /**
+   * Updates translations.
+   *
+   * @param $entity
+   *   An entity object.
+   * @param \Drupal\Core\Entity\ContentEntityType $entity_type
+   *   A ContentEntityType object.
+   * @param array $entity_translations
+   *   An array of translations.
+   * @param $context
+   *   The batch context.
+   */
+  protected function updateTranslation(&$entity, $entity_type, $entity_translations, $context) {
+    foreach ($entity_translations as $langcode => $translation) {
+      // Denormalize.
+      $translation = $this->serializer->denormalize($translation, $entity_type->getClass(), $this->format, $context);
+
+      // If an entity has a translation - update one, otherwise - add a new one.
+      $entity_translation = $entity->hasTranslation($langcode) ? $entity->getTranslation($langcode) : $entity->addTranslation($langcode);
+
+      // Get fields definitions.
+      $fields = $translation->getFieldDefinitions();
+
+      foreach ($translation as $itemID => $item) {
+        if ($entity_translation->hasField($itemID)){
+          if ($fields[$itemID]->isTranslatable() == TRUE){
+            $entity_translation->$itemID->setValue($item->getValue());
+          }
+        }
+      }
+
+      // Avoid issues updating revisions.
+      if ($entity_translation->getEntityType()->hasKey('revision')) {
+        $entity_translation->updateLoadedRevisionId();
+        $entity_translation->setNewRevision(FALSE);
+      }
+
+      // Save the entity translation.
+      $entity_translation->save();
+    }
+
   }
 
   /**

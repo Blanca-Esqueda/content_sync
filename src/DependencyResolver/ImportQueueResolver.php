@@ -39,6 +39,17 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
         }
       }
 
+      // Process translations' dependencies if any.
+      if (!empty($entity["_translations"])) {
+        foreach ($entity["_translations"] as $translation) {
+          if (!empty($translation['_content_sync']['entity_dependencies'])) {
+            foreach ($translation['_content_sync']['entity_dependencies'] as $ref_entity_type_id => $references) {
+              $this->depthFirstSearch($visited, $references, $normalized_entities);
+            }
+          }
+        }
+      }
+
       if (!isset($visited[$identifier]) && $entity) {
         list($entity_type_id, $bundle, $uuid) = explode('.', $identifier);
         $visited[$identifier] = [
@@ -68,10 +79,6 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
       $entity = $normalized_entities[$identifier];
     }
     else {
-
-      // We already have the entity, no need to import.
-      if ($this->entityExists($identifier)) return FALSE;
-
       list($entity_type_id, $bundle, $uuid) = explode('.', $identifier);
       $file_path = content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities/".$entity_type_id."/".$bundle."/".$identifier.".yml";
       $raw_entity = file_get_contents($file_path);
