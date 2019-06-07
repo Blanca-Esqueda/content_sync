@@ -23,43 +23,60 @@ class ExportQueueResolver implements ContentSyncResolverInterface {
    *   Parsed entities to import.
    */
   protected function depthFirstSearch(array &$visited, array $identifiers, array $normalized_entities) {
-    $validate_dependecies = TRUE;
     foreach ($identifiers as $identifier) {
-      $ids = explode('.', $identifier);
-      list($entity_type_id, $bundle, $uuid) = $ids;
-      // Check if entity was sent on the files to import.
-      if (!empty($normalized_entities[$identifier])) {
-        $entity = $normalized_entities[$identifier];
-        // Check dependencies
-        if (!empty($entity['_content_sync']['entity_dependencies'])) {
-          foreach ($entity['_content_sync']['entity_dependencies'] as $ref_entity_type_id => $references) {
-            if(!is_null($references)){
-              $dependency = $this->depthFirstSearch($visited, $references, $normalized_entities);
-            
-            if ($dependency !== TRUE && !is_null($dependency)){
-               $validate_dependecies = FALSE;
-               $visited['Missing'][$identifier][] = $dependency;
-            }
+
+      // Get a decoded entity.
+      $entity = $entity = $this->getEntity($identifier, $normalized_entities);
+
+      // Process dependencies first.
+      if (!empty($entity['_content_sync']['entity_dependencies'])) {
+        foreach ($entity['_content_sync']['entity_dependencies'] as $ref_entity_type_id => $references) {
+          $this->depthFirstSearch($visited, $references, $normalized_entities);
+        }
+      }
+
+      // Process translations' dependencies if any.
+      if (!empty($entity["_translations"])) {
+        foreach ($entity["_translations"] as $translation) {
+          if (!empty($translation['_content_sync']['entity_dependencies'])) {
+            foreach ($translation['_content_sync']['entity_dependencies'] as $ref_entity_type_id => $references) {
+              $this->depthFirstSearch($visited, $references, $normalized_entities);
             }
           }
         }
-        if (!isset($visited[$identifier]) && $validate_dependecies) {
-          $visited[$identifier]['entity_type'] = $entity_type_id;
-          $visited[$identifier]['entity_uuid'] = $uuid;
-          return TRUE;
-        }
-      }else{
-        //Verify if dependency exist in the site and include it.
-        $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-        $entity = $activeStorage->cs_read($identifier);
-        if($entity){
-          $normalized_entities[$identifier] = $entity;
-          $this->depthFirstSearch($visited,[$identifier], $normalized_entities);
-        }else{
-          $return = $identifier;
-        }
       }
+
+      if (!isset($visited[$identifier])) {
+        list($entity_type_id, $bundle, $uuid) = explode('.', $identifier);
+        $visited[$identifier] = [
+          'entity_type' => $entity_type_id,
+          'entity_uuid' => $uuid,
+        ];
+      }
+
     }
+  }
+
+  /**
+   * Gets an entity.
+   *
+   * @param $identifier
+   *   An entity identifier to process.
+   * @param $normalized_entities
+   *   An array of entity identifiers to process.
+   *
+   * @return bool|array
+   *   Array of entity data to export or FALSE if no entity found (db error).
+   */
+  protected function getEntity($identifier, $normalized_entities) {
+    if (!empty($normalized_entities[$identifier])) {
+      $entity = $normalized_entities[$identifier];
+    }
+    else {
+      $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+      $entity = $activeStorage->cs_read($identifier);
+    }
+    return $entity;
   }
 
   /**
