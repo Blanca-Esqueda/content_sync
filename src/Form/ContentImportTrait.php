@@ -65,7 +65,6 @@ trait ContentImportTrait {
       $error = FALSE;
       $item = array_pop($context['sandbox']['queue']);
       $decoded_entity = $item['decoded_entity'];
-      $entity_type_id = $item['entity_type_id'];
       $entity = $this->contentSyncManager->getContentImporter()
                                          ->importEntity($decoded_entity, $serializer_context);
       if($entity) {
@@ -86,8 +85,8 @@ trait ContentImportTrait {
         $error = TRUE;
       }
       if ($error) {
-        $context['message'] = $this->t('Error importing content of type @entity_type.', [
-          '@entity_type' => $entity_type_id,
+        $context['message'] = $this->t('Error importing content @identifier.', [
+          '@identifier' => $item['identifier'],
         ]);
         if (!isset($context['results']['errors'])) {
           $context['results']['errors'] = [];
