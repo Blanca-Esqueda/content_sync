@@ -24,13 +24,8 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
   protected function depthFirstSearch(array &$visited, array $identifiers, array $normalized_entities) {
     foreach ($identifiers as $identifier) {
 
-      // Get a decoded entity. FALSE means no need to import.
-      try {
-        $entity = $this->getEntity($identifier, $normalized_entities);
-      } catch (\Exception $e) {
-        $entity = FALSE;
-        $visited['Missing'][$identifier][] = $e->getMessage();
-      }
+      // Get a decoded entity.
+      $entity = $this->getEntity($identifier, $normalized_entities);
 
       // Process dependencies first.
       if (!empty($entity['_content_sync']['entity_dependencies'])) {
@@ -50,10 +45,9 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
         }
       }
 
-      if (!isset($visited[$identifier]) && $entity) {
-        list($entity_type_id, $bundle, $uuid) = explode('.', $identifier);
+      if (!isset($visited[$identifier])) {
         $visited[$identifier] = [
-          'entity_type_id' => $entity_type_id,
+          'identifier' => $identifier,
           'decoded_entity' => $entity,
         ];
       }
@@ -69,8 +63,8 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
    * @param $normalized_entities
    *   An array of entity identifiers to process.
    *
-   * @return bool|mixed
-   *   Decoded entity or FALSE if an entity already exists and doesn't require to be imported.
+   * @return null|array
+   *   Decoded entity or NULL if an entity is not found.
    *
    * @throws \Exception
    */
@@ -83,9 +77,7 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
       $file_path = content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities/".$entity_type_id."/".$bundle."/".$identifier.".yml";
       $raw_entity = file_get_contents($file_path);
 
-      // Problems to open the .yml file.
-      if (!$raw_entity) throw new \Exception("Dependency {$identifier} is missing.");
-
+      // Returns NULL if !$raw_entity.
       $entity = Yaml::decode($raw_entity);
     }
     return $entity;
