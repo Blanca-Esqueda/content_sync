@@ -156,7 +156,7 @@ trait ContentExportTrait {
                   $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
                   $destination = str_replace($scheme . '://', $destination, $uri);
                   $strip_path = str_replace('/files' , '', $serializer_context['content_sync_directory_files'] );
-                  $this->getArchiver()->addModify($destination, '', $strip_path);
+                  $this->getArchiver()->addModify([$destination], '', $strip_path);
                 }
               }
               if( $serializer_context['export_type'] == 'folder') {
