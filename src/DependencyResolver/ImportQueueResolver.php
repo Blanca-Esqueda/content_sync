@@ -35,7 +35,9 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
       // Process dependencies first.
       if (!empty($entity['_content_sync']['entity_dependencies'])) {
         foreach ($entity['_content_sync']['entity_dependencies'] as $ref_entity_type_id => $references) {
-          $this->depthFirstSearch($visited, $references, $normalized_entities);
+          if($ref_entity_type_id != 'user' && $ref_entity_type_id != 'lingotek_content_metadata' ){
+            $this->depthFirstSearch($visited, $references, $normalized_entities);
+          }
         }
       }
 
@@ -44,7 +46,9 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
         foreach ($entity["_translations"] as $translation) {
           if (!empty($translation['_content_sync']['entity_dependencies'])) {
             foreach ($translation['_content_sync']['entity_dependencies'] as $ref_entity_type_id => $references) {
-              $this->depthFirstSearch($visited, $references, $normalized_entities);
+              if($ref_entity_type_id != 'user' && $ref_entity_type_id != 'lingotek_content_metadata' ){
+                $this->depthFirstSearch($visited, $references, $normalized_entities);
+              }
             }
           }
         }
