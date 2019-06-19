@@ -50,6 +50,9 @@ trait ContentExportTrait {
       }
       unset($serializer_context['include_files']);
     }
+    if (!isset($serializer_context['include_dependencies'])){
+      $serializer_context['include_dependencies'] = FALSE;
+    }
 
     //Set batch operations by entity type/bundle
     $operations = [];
@@ -119,6 +122,10 @@ trait ContentExportTrait {
         // Create the name
         $bundle = $entity->bundle();
         $uuid = $entity->uuid();
+        // Exception for lingotek_content_metadata
+        if( $entity_type == 'lingotek_content_metadata'){
+          $uuid = $entity->id();
+        }
         $name = $entity_type . "." .  $bundle . "." . $uuid;
 
         if (!isset($context['exported'][$name])) {
@@ -152,11 +159,14 @@ trait ContentExportTrait {
                 if (method_exists($entity, 'getFileUri')
                     && !empty($serializer_context['content_sync_directory_files']) ) {
                   $uri = $entity->getFileUri();
-                  $scheme = \Drupal::service('file_system')->uriScheme($uri);
-                  $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
-                  $destination = str_replace($scheme . '://', $destination, $uri);
-                  $strip_path = str_replace('/files' , '', $serializer_context['content_sync_directory_files'] );
-                  $this->getArchiver()->addModify([$destination], '', $strip_path);
+
+                  if(file_exists($uri)){
+                    $scheme = \Drupal::service('file_system')->uriScheme($uri);
+                    $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
+                    $destination = str_replace($scheme . '://', $destination, $uri);
+                    $strip_path = str_replace('/files' , '', $serializer_context['content_sync_directory_files'] );
+                    $this->getArchiver()->addModify([$destination], '', $strip_path);
+                  }
                 }
               }
               if( $serializer_context['export_type'] == 'folder') {
