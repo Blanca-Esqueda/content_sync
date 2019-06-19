@@ -225,23 +225,26 @@ class ContentSyncCommands extends DrushCommands {
       $collections = $match_collections;
     }
     foreach ($collections as $collection){
-      if (!empty($options['uuids'])){
-        $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
-      }else{
-        $storage_comparer->createChangelistbyCollection($collection);
-      }
-      if (!empty($options['actions'])){
-        $actions = explode(',', $options['actions']);
-        foreach ($actions as $op){
-          if (in_array($op, ['create','update','delete'])){
-            $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
-          }
+      // benetech avoid importing/exporting lingotek and users entities.
+      if ( $collection != 'lingotek_content_metadata.lingotek_content_metadata' && $collection != 'user.user' ) {
+        if (!empty($options['uuids'])){
+          $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
+        }else{
+          $storage_comparer->createChangelistbyCollection($collection);
         }
-      }else{
-        $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
+        if (!empty($options['actions'])){
+          $actions = explode(',', $options['actions']);
+          foreach ($actions as $op){
+            if (in_array($op, ['create','update','delete'])){
+              $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
+            }
+          }
+        }else{
+          $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
+        }
+        $change_list = array_map('array_filter', $change_list);
+        $change_list = array_filter($change_list);
       }
-      $change_list = array_map('array_filter', $change_list);
-      $change_list = array_filter($change_list);
     }
     unset($change_list['']);
 
@@ -323,23 +326,26 @@ class ContentSyncCommands extends DrushCommands {
       $collections = $match_collections;
     }
     foreach ($collections as $collection){
-      if (!empty($options['uuids'])){
-        $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
-      }else{
-        $storage_comparer->createChangelistbyCollection($collection);
-      }
-      if (!empty($options['actions'])){
-        $actions = explode(',', $options['actions']);
-        foreach ($actions as $op){
-          if (in_array($op, ['create','update','delete'])){
-            $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
-          }
+      // benetech avoid importing/exporting lingotek and users entities.
+      if ( $collection != 'lingotek_content_metadata.lingotek_content_metadata' && $collection != 'user.user' ) {
+        if (!empty($options['uuids'])){
+          $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
+        }else{
+          $storage_comparer->createChangelistbyCollection($collection);
         }
-      }else{
-        $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
+        if (!empty($options['actions'])){
+          $actions = explode(',', $options['actions']);
+          foreach ($actions as $op){
+            if (in_array($op, ['create','update','delete'])){
+              $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
+            }
+          }
+        }else{
+          $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
+        }
+        $change_list = array_map('array_filter', $change_list);
+        $change_list = array_filter($change_list);
       }
-      $change_list = array_map('array_filter', $change_list);
-      $change_list = array_filter($change_list);
     }
     unset($change_list['']);
 

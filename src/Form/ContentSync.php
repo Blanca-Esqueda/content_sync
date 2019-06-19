@@ -122,80 +122,83 @@ class ContentSync extends FormBase {
 
     foreach ($storage_comparer->getAllCollectionNames() as $collection) {
 
+      // benetech avoid importing/exporting lingotek and users entities.
+      if ( $collection != 'lingotek_content_metadata.lingotek_content_metadata' && $collection != 'user.user' ) {
 
-      foreach ($storage_comparer->getChangelist(NULL, $collection) as $config_change_type => $config_names) {
-        if (empty($config_names)) {
-          continue;
-        }
-        // @todo A table caption would be more appropriate, but does not have the
-        //   visual importance of a heading.
-        $form[$collection][$config_change_type]['heading'] = [
-          '#type' => 'html_tag',
-          '#tag' => 'h3',
-        ];
-        switch ($config_change_type) {
-          case 'create':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count new', '@count new');
-            break;
-
-          case 'update':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count changed', '@count changed');
-            break;
-
-          case 'delete':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count removed', '@count removed');
-            break;
-
-          case 'rename':
-            $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count renamed', '@count renamed');
-            break;
-        }
-        $form[$collection][$config_change_type]['list'] = [
-          '#type' => 'table',
-          '#header' => [$this->t('Name'), $this->t('Operations')],
-        ];
-        foreach ($config_names as $config_name) {
-          if ($config_change_type == 'rename') {
-            $names = $storage_comparer->extractRenameNames($config_name);
-            $route_options = [
-              'source_name' => $names['old_name'],
-              'target_name' => $names['new_name'],
-            ];
-            $config_name = $this->t('@source_name to @target_name', [
-              '@source_name' => $names['old_name'],
-              '@target_name' => $names['new_name'],
-            ]);
+        foreach ($storage_comparer->getChangelist(NULL, $collection) as $config_change_type => $config_names) {
+          if (empty($config_names)) {
+            continue;
           }
-          else {
-            $route_options = ['source_name' => $config_name];
-          }
-          if ($collection != StorageInterface::DEFAULT_COLLECTION) {
-            $route_name = 'content.diff_collection';
-            $route_options['collection'] = $collection;
-          }
-          else {
-            $route_name = 'content.diff';
-          }
-          $links['view_diff'] = [
-            'title' => $this->t('View differences'),
-            'url' => Url::fromRoute($route_name, $route_options),
-            'attributes' => [
-              'class' => ['use-ajax'],
-              'data-dialog-type' => 'modal',
-              'data-dialog-options' => json_encode([
-                'width' => 700,
-              ]),
-            ],
+          // @todo A table caption would be more appropriate, but does not have the
+          //   visual importance of a heading.
+          $form[$collection][$config_change_type]['heading'] = [
+            '#type' => 'html_tag',
+            '#tag' => 'h3',
           ];
-          $form[$collection][$config_change_type]['list']['#rows'][] = [
-            'name' => $config_name,
-            'operations' => [
-              'data' => [
-                '#type' => 'operations',
-                '#links' => $links,
+          switch ($config_change_type) {
+            case 'create':
+              $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count new', '@count new');
+              break;
+
+            case 'update':
+              $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count changed', '@count changed');
+              break;
+
+            case 'delete':
+              $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count removed', '@count removed');
+              break;
+
+            case 'rename':
+              $form[$collection][$config_change_type]['heading']['#value'] = $collection .' '. $this->formatPlural(count($config_names), '@count renamed', '@count renamed');
+              break;
+          }
+          $form[$collection][$config_change_type]['list'] = [
+            '#type' => 'table',
+            '#header' => [$this->t('Name'), $this->t('Operations')],
+          ];
+          foreach ($config_names as $config_name) {
+            if ($config_change_type == 'rename') {
+              $names = $storage_comparer->extractRenameNames($config_name);
+              $route_options = [
+                'source_name' => $names['old_name'],
+                'target_name' => $names['new_name'],
+              ];
+              $config_name = $this->t('@source_name to @target_name', [
+                '@source_name' => $names['old_name'],
+                '@target_name' => $names['new_name'],
+              ]);
+            }
+            else {
+              $route_options = ['source_name' => $config_name];
+            }
+            if ($collection != StorageInterface::DEFAULT_COLLECTION) {
+              $route_name = 'content.diff_collection';
+              $route_options['collection'] = $collection;
+            }
+            else {
+              $route_name = 'content.diff';
+            }
+            $links['view_diff'] = [
+              'title' => $this->t('View differences'),
+              'url' => Url::fromRoute($route_name, $route_options),
+              'attributes' => [
+                'class' => ['use-ajax'],
+                'data-dialog-type' => 'modal',
+                'data-dialog-options' => json_encode([
+                  'width' => 700,
+                ]),
               ],
-            ],
-          ];
+            ];
+            $form[$collection][$config_change_type]['list']['#rows'][] = [
+              'name' => $config_name,
+              'operations' => [
+                'data' => [
+                  '#type' => 'operations',
+                  '#links' => $links,
+                ],
+              ],
+            ];
+          }
         }
       }
     }

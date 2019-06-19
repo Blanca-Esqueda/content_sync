@@ -58,7 +58,9 @@ trait ContentExportTrait {
     $operations = [];
     $operations[] = [[$this, 'generateSiteUUIDFile'], [0 => $serializer_context]];
     foreach ($entities as $entity) {
-      $operations[] = [[$this, 'processContentExportFiles'], [[$entity], $serializer_context]];
+      if ($entity['entity_type'] != 'lingotek_content_metadata' && $entity['entity_type'] != 'user'){
+        $operations[] = [[$this, 'processContentExportFiles'], [[$entity], $serializer_context]];
+      }
     }
     //Set Batch
     $batch = [
