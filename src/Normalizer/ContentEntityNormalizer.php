@@ -45,16 +45,16 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
     $original_data = $data;
 
     // Get the entity type ID while letting context override the $class param.
-    $entity_type_id = !empty($context['entity_type']) ? $context['entity_type'] : $this->entityManager->getEntityTypeFromClass($class);
+    $entity_type_id = !empty($context['entity_type']) ? $context['entity_type'] : $this->entityTypeManager->getEntityTypeFromClass($class);
 
     $bundle = FALSE;
     /** @var \Drupal\Core\Entity\EntityTypeInterface $entity_type_definition */
     // Get the entity type definition.
-    $entity_type_definition = $this->entityManager->getDefinition($entity_type_id, FALSE);
+    $entity_type_definition = $this->entityTypeManager->getDefinition($entity_type_id, FALSE);
     if ($entity_type_definition->hasKey('bundle')) {
       $bundle_key = $entity_type_definition->getKey('bundle');
       // Get the base field definitions for this entity type.
-      $base_field_definitions = $this->entityManager->getBaseFieldDefinitions($entity_type_id);
+      $base_field_definitions = $this->entityTypeManager->getBaseFieldDefinitions($entity_type_id);
 
       // Get the ID key from the base field definition for the bundle key or
       // default to 'value'.
@@ -221,13 +221,13 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
    */
   protected function fixReferences(&$data, $entity_type_id, $bundle = FALSE) {
     if ($bundle) {
-      $field_definitions = $this->entityManager->getFieldDefinitions($entity_type_id, $bundle);
+      $field_definitions = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
     }
     else {
-      $bundles = array_keys($this->entityManager->getBundleInfo($entity_type_id));
+      $bundles = array_keys($this->entityTypeManager->getBundleInfo($entity_type_id));
       $field_definitions = [];
       foreach ($bundles as $bundle) {
-        $field_definitions_bundle = $this->entityManager->getFieldDefinitions($entity_type_id, $bundle);
+        $field_definitions_bundle = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
         if (is_array($field_definitions_bundle)) {
           $field_definitions += $field_definitions_bundle;
         }
@@ -243,7 +243,7 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
           ->getMainPropertyName();
         foreach ($data[$field_name] as $i => &$item) {
           if (!empty($item['target_uuid'])) {
-            $reference = $this->entityManager->loadEntityByUuid($item['target_type'], $item['target_uuid']);
+            $reference = $this->entityTypeManager->loadEntityByUuid($item['target_type'], $item['target_uuid']);
             if ($reference) {
               $item[$key] = $reference->id();
               if (is_a($reference, RevisionableInterface::class, TRUE)) {
@@ -251,7 +251,7 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
               }
             }
             else {
-              $reflection = new \ReflectionClass($this->entityManager->getStorage($item['target_type'])->getEntityType()->getClass());
+              $reflection = new \ReflectionClass($this->entityTypeManager->getStorage($item['target_type'])->getEntityType()->getClass());
               if ($reflection->implementsInterface(ContentEntityInterface::class)) {
                 unset($data[$field_name][$i]);
               }
@@ -269,13 +269,13 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
    */
   protected function cleanupData(&$data, $entity_type_id, $bundle = FALSE) {
     if ($bundle) {
-      $field_definitions = $this->entityManager->getFieldDefinitions($entity_type_id, $bundle);
+      $field_definitions = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
     }
     else {
-      $bundles = array_keys($this->entityManager->getBundleInfo($entity_type_id));
+      $bundles = array_keys($this->entityTypeManager->getBundleInfo($entity_type_id));
       $field_definitions = [];
       foreach ($bundles as $bundle) {
-        $field_definitions_bundle = $this->entityManager->getFieldDefinitions($entity_type_id, $bundle);
+        $field_definitions_bundle = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
         if (is_array($field_definitions_bundle)) {
           $field_definitions += $field_definitions_bundle;
         }
