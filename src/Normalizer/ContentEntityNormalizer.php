@@ -33,6 +33,7 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
   public function __construct(EntityTypeManagerInterface $entity_manager, SyncNormalizerDecoratorManager $decorator_manager) {
     parent::__construct($entity_manager);
     $this->decoratorManager = $decorator_manager;
+    $this->entityManager = $entity_manager;
   }
 
   /**
