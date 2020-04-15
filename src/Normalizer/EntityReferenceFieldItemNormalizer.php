@@ -51,6 +51,11 @@ class EntityReferenceFieldItemNormalizer extends FieldItemNormalizer {
       // Add the target entity UUID to the normalized output values.
       $values['target_uuid'] = $entity->uuid();
 
+      // Remove target revision id as we are not syncing revisions.
+      if (isset($values['target_revision_id'])){
+        unset($values['target_revision_id']);
+      }
+
       // Add a 'url' value if there is a reference and a canonical URL. Hard
       // code 'canonical' here as config entities override the default $rel
       // parameter value to 'edit-form.
