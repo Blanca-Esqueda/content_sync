@@ -3,6 +3,7 @@ type: module
 description: 'Allows to import/export content using YAML files'
 package: Custom
 core: 8.x
+core_version_requirement: ^8 || ^9
 configure: content.sync
 dependencies:
   - drupal:serialization (>=8.6.10)
