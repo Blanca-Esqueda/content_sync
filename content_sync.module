@@ -220,7 +220,7 @@ function content_sync_entity_update(EntityInterface $entity) {
     $name = $entity_type . "." . $entity_bundle . "." . $entity->uuid();
     // Insert/Update Data.
     $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
-    $activeStorage->cs_write($name, Yaml::decode($exported_entity, $entity_type . "." . $entity_bundle);
+    $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type . "." . $entity_bundle);
     // Invalidate the CS Cache of the entity.
     $cache = \Drupal::cache('content')->invalidate($entity_type.".".$entity_bundle.":".$name);
   }
