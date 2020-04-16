@@ -97,7 +97,7 @@ trait ContentExportTrait {
     //Validate that it is a Content Entity
     $instances = $this->getEntityTypeManager()->getDefinitions();
     if (!(isset($instances[$entity_type]) && $instances[$entity_type] instanceof ContentEntityType)) {
-      $context['results']['errors'][] = $this->t('Entity type does not exist or it is not a content instance.') . $entity_type;
+      $context['results']['errors'][] = $this->t('Entity type @entity_type does not exist or it is not a content instance.', ['@entity_type' => $entity_type]);
     }
     else {
       if (isset($item['entity_uuid'])){
