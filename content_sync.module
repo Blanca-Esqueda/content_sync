@@ -5,7 +5,7 @@
  * Allows site administrators to modify content.
  */
 
-use Drupal\Core\Config\DatabaseStorage;
+use Drupal\content_sync\Content\ContentDatabaseStorage;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Entity\ContentEntityType;
 use Drupal\Core\Entity\EntityInterface;
@@ -219,7 +219,7 @@ function content_sync_entity_update(EntityInterface $entity) {
     // Create the name.
     $name = $entity_type . "." . $entity_bundle . "." . $entity->uuid();
     // Insert/Update Data.
-    $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+    $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
     $activeStorage->cs_write($name, Yaml::decode($exported_entity), $entity_type . "." . $entity_bundle);
     // Invalidate the CS Cache of the entity.
     $cache = \Drupal::cache('content')->invalidate($entity_type.".".$entity_bundle.":".$name);
@@ -253,7 +253,7 @@ function content_sync_entity_delete(EntityInterface $entity) {
     // Update the data for diff.
     $name = $entity_type . "." . $entity_bundle . "." . $entity_uuid;
     // Delete Data.
-    $activeStorage = new DatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
+    $activeStorage = new ContentDatabaseStorage(\Drupal::database(), 'cs_db_snapshot');
     $activeStorage->cs_delete($name);
     // Invalidate the CS Cache of the entity.
     $cache = \Drupal::cache('content')->invalidate($entity_type.".".$entity_bundle.":".$name);
