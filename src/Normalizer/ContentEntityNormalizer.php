@@ -168,14 +168,14 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
     $route_parameters = NULL;
     try {
       $route_parameters = $url->getRouteParameters();
+      if (count($route_parameters) == 1) {
+        $entity_id = reset($route_parameters);
+        $entity_type = key($route_parameters);
+        $entity = \Drupal::entityTypeManager()->getStorage($entity_type)->load($entity_id);
+      }
     }
     catch (\Exception $e) {
       // If menu link is linked to a non-node page - just do nothing.
-    }
-    if (count($route_parameters) == 1) {
-      $entity_id = reset($route_parameters);
-      $entity_type = key($route_parameters);
-      $entity = \Drupal::entityTypeManager()->getStorage($entity_type)->load($entity_id);
     }
     return $entity;
   }
