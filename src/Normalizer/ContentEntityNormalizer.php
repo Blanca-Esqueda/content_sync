@@ -9,6 +9,7 @@ use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\RevisionableInterface;
 use Drupal\Core\Url;
+use Drupal\menu_link_content\Entity\MenuLinkContent;
 use Drupal\serialization\Normalizer\ContentEntityNormalizer as BaseContentEntityNormalizer;
 
 /**
@@ -152,32 +153,27 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
   /**
    * Gets a node attached to a menu link. The node has already been imported.
    *
-   * @param \Drupal\Core\Entity\EntityInterface $object
-   *   Menu Link Entity
+   * @param \Drupal\menu_link_content\Entity\MenuLinkContent $object
+   *   Menu Link Entity.
    *
-   * @return bool|\Drupal\Core\Entity\EntityInterface|null
+   * @return \Drupal\Core\Entity\EntityInterface|null
    *   Node Entity.
    *
-   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    */
-  protected function getMenuLinkNodeAttached($object) {
-    $entity = FALSE;
-
+  protected function getMenuLinkNodeAttached(MenuLinkContent $object) {
     $uri = $object->get('link')->getString();
     $url = Url::fromUri($uri);
-    $route_parameters = NULL;
     try {
       $route_parameters = $url->getRouteParameters();
       if (count($route_parameters) == 1) {
         $entity_id = reset($route_parameters);
         $entity_type = key($route_parameters);
-        $entity = \Drupal::entityTypeManager()->getStorage($entity_type)->load($entity_id);
+        return \Drupal::entityTypeManager()->getStorage($entity_type)->load($entity_id);
       }
     }
     catch (\Exception $e) {
       // If menu link is linked to a non-node page - just do nothing.
     }
-    return $entity;
   }
 
   /**
