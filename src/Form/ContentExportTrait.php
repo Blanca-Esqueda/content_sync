@@ -8,6 +8,7 @@ use Drupal\content_sync\Content\ContentDatabaseStorage;
 use Drupal\Core\Entity\ContentEntityType;
 use Drupal\Core\Serialization\Yaml;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Url;
 
 /**
  * Defines the content export form.
@@ -40,12 +41,12 @@ trait ContentExportTrait {
    * @return array
    */
   public function generateExportBatch($entities, $serializer_context = []) {
-    $serializer_context['content_sync_directory_entities'] =  content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities";
-    if (isset($serializer_context['include_files'])){
-      if ($serializer_context['include_files'] == 'folder'){
-        $serializer_context['content_sync_directory_files'] =  content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/files";
+    $serializer_context['content_sync_directory_entities'] =  content_sync_get_content_directory('sync') . "/entities";
+    if (isset($serializer_context['include_files'])) {
+      if ($serializer_context['include_files'] == 'folder') {
+        $serializer_context['content_sync_directory_files'] =  content_sync_get_content_directory('sync') . "/files";
       }
-      if ($serializer_context['include_files'] == 'base64'){
+      if ($serializer_context['include_files'] == 'base64') {
         $serializer_context['content_sync_file_base_64'] = TRUE;
       }
       unset($serializer_context['include_files']);
@@ -152,7 +153,7 @@ trait ContentExportTrait {
                 if (method_exists($entity, 'getFileUri')
                     && !empty($serializer_context['content_sync_directory_files']) ) {
                   $uri = $entity->getFileUri();
-                  $scheme = \Drupal::service('file_system')->uriScheme($uri);
+                  $scheme = \Drupal::service('stream_wrapper_manager')->getScheme($uri);
                   $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
                   $destination = str_replace($scheme . '://', $destination, $uri);
                   $strip_path = str_replace('/files' , '', $serializer_context['content_sync_directory_files'] );
@@ -163,8 +164,8 @@ trait ContentExportTrait {
                 // YAML in a directory.
                 $path = $serializer_context['content_sync_directory_entities']."/$entity_type/$bundle";
                 $destination = $path . "/$name.yml";
-                file_prepare_directory($path, FILE_CREATE_DIRECTORY);
-                $file = file_unmanaged_save_data($exported_entity, $destination, FILE_EXISTS_REPLACE);
+                \Drupal::service('file_system')->prepareDirectory($path, FileSystemInterface::CREATE_DIRECTORY);
+                $file =  \Drupal::service('file_system')->saveData($exported_entity, $destination, FileSystemInterface::EXISTS_REPLACE);
               }
 
               // Invalidate the CS Cache of the entity.
@@ -227,8 +228,8 @@ trait ContentExportTrait {
       }elseif( $serializer_context['export_type'] == 'folder') {
         $path = $serializer_context['content_sync_directory_entities'];
         $destination = $path . "/$name.yml";
-        file_prepare_directory($path, FILE_CREATE_DIRECTORY);
-        $file = file_unmanaged_save_data(Yaml::encode($entity), $destination, FILE_EXISTS_REPLACE);
+        \Drupal::service('file_system')->prepareDirectory($path, FileSystemInterface::CREATE_DIRECTORY);
+        $file = \Drupal::service('file_system')->saveData(Yaml::encode($entity), $destination, FileSystemInterface::EXISTS_REPLACE);
       }
     }
     $context['message'] = $name;
@@ -267,24 +268,24 @@ trait ContentExportTrait {
           $this->getExportLogger()->error($error);
         }
         // Log the note that the content was exported with errors.
-        drupal_set_message($this->t('The content was exported with errors. <a href=":content-overview">Logs</a>', [':content-overview' => \Drupal::url('content.overview')]), 'warning');
+        \Drupal::messenger()->addWarning($this->t('The content was exported with errors. <a href=":content-overview">Logs</a>', [':content-overview' => Url::fromRoute('content.overview')->toString()]));
         $this->getExportLogger()
              ->warning('The content was exported with errors.', ['link' => 'Export']);
       }
       else {
         // Log the new created export link if applicable.
-        drupal_set_message($this->t('The content was exported successfully. <a href=":export-download">Download tar file</a>', [':export-download' => \Drupal::url('content.export_download')]));
+        \Drupal::messenger()->addStatus($this->t('The content was exported successfully. <a href=":export-download">Download tar file</a>', [':export-download' => Url::fromRoute('content.export_download')->toString()]));
         $this->getExportLogger()
              ->info('The content was exported successfully. <a href=":export-download">Download tar file</a>', [
-               ':export-download' => \Drupal::url('content.export_download'),
+               ':export-download' =>  Url::fromRoute('content.export_download')->toString(),
                'link' => 'Export',
              ]);
       }
     }
     else {
-      // Log that there was an error
-      $message = $this->t('Finished with an error.<a href=":content-overview">Logs</a>', [':content-overview' => \Drupal::url('content.overview')]);
-      drupal_set_message($message);
+      // Log that there was an error.
+      $message = $this->t('Finished with an error.<a href=":content-overview">Logs</a>', [':content-overview' => Url::fromRoute('content.overview')->toString()]);
+      \Drupal::messenger()->addStatus($message);
       $this->getExportLogger()
            ->error('Finished with an error.', ['link' => 'Export']);
     }
@@ -298,7 +299,7 @@ trait ContentExportTrait {
   }
 
   protected function getTempFile() {
-    return file_directory_temp() . '/content.tar.gz';
+    return \Drupal::service('file_system')->getTempDirectory() . '/content.tar.gz';
   }
 
   /**

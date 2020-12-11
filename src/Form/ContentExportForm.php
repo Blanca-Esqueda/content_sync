@@ -8,6 +8,7 @@ use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\File\FileSystemInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -36,17 +37,19 @@ class ContentExportForm extends FormBase {
   /**
    * ContentExportForm constructor.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ContentSyncManagerInterface $content_sync_manager) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ContentSyncManagerInterface $content_sync_manager, FileSystemInterface $file_system) {
     $this->entityTypeManager = $entity_type_manager;
     $this->contentExporter = $content_exporter;
     $this->contentSyncManager = $content_sync_manager;
+    $this->fileSystem = $file_system;
   }
 
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity_type.manager'),
       $container->get('content_sync.exporter'),
-      $container->get('content_sync.manager')
+      $container->get('content_sync.manager'),
+      $container->get('file_system')
     );
   }
 
@@ -73,7 +76,7 @@ class ContentExportForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Delete the content tar file in case an older version exist.
-    file_unmanaged_delete($this->getTempFile());
+    $this->fileSystem->delete($this->getTempFile());
 
     //Set batch operations by entity type/bundle
     $entities_list = [];

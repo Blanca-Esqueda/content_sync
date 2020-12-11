@@ -12,7 +12,7 @@ use Symfony\Component\Serializer\Serializer;
 class ContentSyncManager implements ContentSyncManagerInterface {
 
   const DELIMITER = '.';
-  
+
   /**
    * @var \Symfony\Component\Serializer\Serializer
    */
