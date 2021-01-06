@@ -7,6 +7,10 @@ use Drupal\content_sync\Plugin\SyncNormalizerDecoratorManager;
 use Drupal\content_sync\Plugin\SyncNormalizerDecoratorTrait;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Entity\EntityTypeRepositoryInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Entity\EntityRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\RevisionableInterface;
 use Drupal\Core\Url;
 use Drupal\menu_link_content\Entity\MenuLinkContent;
@@ -25,16 +29,39 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
   protected $decoratorManager;
 
   /**
+   * The entity bundle info.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
+   */
+  protected $entityTypeBundleInfo;
+
+  /**
+   * The entity repository.
+   *
+   * @var \Drupal\Core\Entity\EntityRepositoryInterface
+   */
+  protected $entityRepository;
+
+  /**
    * Constructs an EntityNormalizer object.
    *
-   * @param EntityTypeManagerInterface $entity_manager
-   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Entity\EntityTypeRepositoryInterface $entity_type_repository
+   *   The entity type repository.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
+   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
+   *   The entity bundle info.
+   * @param \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository
+   *   The entity repository.
    * @param SyncNormalizerDecoratorManager $decorator_manager
    */
-  public function __construct(EntityTypeManagerInterface $entity_manager, SyncNormalizerDecoratorManager $decorator_manager) {
-    parent::__construct($entity_manager);
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, EntityTypeRepositoryInterface $entity_type_repository, EntityFieldManagerInterface $entity_field_manager, EntityTypeBundleInfoInterface $entity_type_bundle_info, EntityRepositoryInterface $entity_repository, SyncNormalizerDecoratorManager $decorator_manager) {
+    parent::__construct($entity_type_manager, $entity_type_repository, $entity_field_manager);
     $this->decoratorManager = $decorator_manager;
-    $this->entityTypeManager = $entity_manager;
+    $this->entityRepository = $entity_repository;
+    $this->entityTypeBundleInfo = $entity_type_bundle_info;
   }
 
   /**
@@ -47,7 +74,7 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
     $original_data = $data;
 
     // Get the entity type ID while letting context override the $class param.
-    $entity_type_id = !empty($context['entity_type']) ? $context['entity_type'] : $this->entityTypeManager->getEntityTypeFromClass($class);
+    $entity_type_id = !empty($context['entity_type']) ? $context['entity_type'] : $this->entityTypeRepository->getEntityTypeFromClass($class);
 
     $bundle = FALSE;
     /** @var \Drupal\Core\Entity\EntityTypeInterface $entity_type_definition */
@@ -56,7 +83,7 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
     if ($entity_type_definition->hasKey('bundle')) {
       $bundle_key = $entity_type_definition->getKey('bundle');
       // Get the base field definitions for this entity type.
-      $base_field_definitions = $this->entityTypeManager->getBaseFieldDefinitions($entity_type_id);
+      $base_field_definitions = $this->entityFieldManager->getBaseFieldDefinitions($entity_type_id);
 
       // Get the ID key from the base field definition for the bundle key or
       // default to 'value'.
@@ -218,13 +245,13 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
    */
   protected function fixReferences(&$data, $entity_type_id, $bundle = FALSE) {
     if ($bundle) {
-      $field_definitions = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
+      $field_definitions = $this->entityFieldManager->getFieldDefinitions($entity_type_id, $bundle);
     }
     else {
-      $bundles = array_keys($this->entityTypeManager->getBundleInfo($entity_type_id));
+      $bundles = array_keys($this->entityTypeBundleInfo->getBundleInfo($entity_type_id));
       $field_definitions = [];
       foreach ($bundles as $bundle) {
-        $field_definitions_bundle = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
+        $field_definitions_bundle = $this->entityFieldManager->getFieldDefinitions($entity_type_id, $bundle);
         if (is_array($field_definitions_bundle)) {
           $field_definitions += $field_definitions_bundle;
         }
@@ -240,7 +267,7 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
           ->getMainPropertyName();
         foreach ($data[$field_name] as $i => &$item) {
           if (!empty($item['target_uuid'])) {
-            $reference = $this->entityTypeManager->loadEntityByUuid($item['target_type'], $item['target_uuid']);
+            $reference = $this->entityRepository->loadEntityByUuid($item['target_type'], $item['target_uuid']);
             if ($reference) {
               $item[$key] = $reference->id();
               if (is_a($reference, RevisionableInterface::class, TRUE)) {
@@ -266,13 +293,13 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
    */
   protected function cleanupData(&$data, $entity_type_id, $bundle = FALSE) {
     if ($bundle) {
-      $field_definitions = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
+      $field_definitions = $this->entityFieldManager->getFieldDefinitions($entity_type_id, $bundle);
     }
     else {
-      $bundles = array_keys($this->entityTypeManager->getBundleInfo($entity_type_id));
+      $bundles = array_keys($this->entityTypeBundleInfo->getBundleInfo($entity_type_id));
       $field_definitions = [];
       foreach ($bundles as $bundle) {
-        $field_definitions_bundle = $this->entityTypeManager->getFieldDefinitions($entity_type_id, $bundle);
+        $field_definitions_bundle = $this->entityFieldManager->getFieldDefinitions($entity_type_id, $bundle);
         if (is_array($field_definitions_bundle)) {
           $field_definitions += $field_definitions_bundle;
         }

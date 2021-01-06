@@ -3,6 +3,7 @@
 namespace Drupal\content_sync\Utility;
 
 use Drupal\Component\Serialization\Json;
+use Drupal\imce\Imce;
 
 /**
  * Helper class for dialog methods.
@@ -61,7 +62,7 @@ class ContentSyncDialogHelper {
   public static function attachLibraries(array &$build) {
     $build['#attached']['library'][] = 'content_sync/content_sync.admin.dialog';
     // @see \Drupal\content_sync\Element\content_syncHtmlEditor::preRendercontent_syncHtmlEditor
-    if (\Drupal::moduleHandler()->moduleExists('imce') && \Drupal\imce\Imce::access()) {
+    if (\Drupal::moduleHandler()->moduleExists('imce') && Imce::access()) {
       $element['#attached']['library'][] = 'imce/drupal.imce.ckeditor';
       $element['#attached']['drupalSettings']['content_sync']['html_editor']['ImceImageIcon'] = file_create_url(drupal_get_path('module', 'imce') . '/js/plugins/ckeditor/icons/imceimage.png');
     }
@@ -84,7 +85,7 @@ class ContentSyncDialogHelper {
     }
     else {
       $class[] = 'use-ajax';
-      if (content_syncDialogHelper::useOffCanvas()) {
+      if (self::useOffCanvas()) {
         return [
           'class' => $class,
           'data-dialog-type' => 'dialog',

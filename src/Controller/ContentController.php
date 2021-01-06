@@ -14,6 +14,7 @@ use Drupal\Core\Diff\DiffFormatter;
 //use Drupal\Core\Serialization\Yaml;
 use Drupal\Core\Url;
 //use Symfony\Component\HttpFoundation\Request;
+use Drupal\Core\File\FileSystemInterface;
 
 
 /**
@@ -63,8 +64,8 @@ class ContentController implements ContainerInjectionInterface {
       $container->get('content.storage'),
       $container->get('content.storage.sync'),
       $container->get('config.manager'),
-      new FileDownloadController(),
-      $container->get('diff.formatter')
+      $container->get('diff.formatter'),
+      $container->get('file_system')
     );
   }
 
@@ -78,12 +79,12 @@ class ContentController implements ContainerInjectionInterface {
    * @param \Drupal\system\FileDownloadController $file_download_controller
    *   The file download controller.
    */
-  public function __construct(StorageInterface $target_storage, StorageInterface $source_storage, ConfigManagerInterface $content_manager, FileDownloadController $file_download_controller, DiffFormatter $diff_formatter) {
+  public function __construct(StorageInterface $target_storage, StorageInterface $source_storage, ConfigManagerInterface $content_manager, DiffFormatter $diff_formatter, FileSystemInterface $file_system) {
     $this->targetStorage = $target_storage;
     $this->sourceStorage = $source_storage;
     $this->contentManager = $content_manager;
-    $this->fileDownloadController = $file_download_controller;
     $this->diffFormatter = $diff_formatter;
+    $this->fileSystem = $file_system;
   }
 
   /**
@@ -94,7 +95,7 @@ class ContentController implements ContainerInjectionInterface {
     //$request = new Request(['file' => 'content.tar.gz']);
     //return $this->fileDownloadController->download($request, 'temporary');
     $filename = 'content.tar.gz';
-    $file_path = file_directory_temp() . '/' . $filename;
+    $file_path = $this->fileSystem->getTempDirectory() . '/' . $filename;
     if (file_exists($file_path) ) {
       unset($_SESSION['content_tar_download_file']);
       $mime = \Drupal::service('file.mime_type.guesser')->guess($file_path);
@@ -103,7 +104,7 @@ class ContentController implements ContainerInjectionInterface {
         'Content-Length' => filesize($file_path),
         'Content-Disposition' => 'attachment; filename="' . Unicode::mimeHeaderEncode($filename) . '"',
         'Cache-Control' => 'private',
-      ); 
+      );
       return new BinaryFileResponse($file_path, 200, $headers);
     }
     return -1;

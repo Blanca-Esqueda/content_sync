@@ -7,7 +7,7 @@ services:
       - { name: backend_overridable }
   content_sync.snaphoshot:
     class: Drupal\content_sync\Form\ContentExportForm
-    arguments: ['@entity_type.manager','@content_sync.exporter','@content_sync.manager']
+    arguments: ['@entity_type.manager','@content_sync.exporter','@content_sync.manager','@file_system']
   content.storage.staging:
     class: Drupal\Core\Config\FileStorage
     factory: Drupal\content_sync\Content\ContentFileStorageFactory::getSync
@@ -46,17 +46,17 @@ services:
       arguments: ['@serializer', '@entity_type.manager','@content_sync.exporter', '@content_sync.importer']
   content_sync.normalizer.content_entity:
     class: Drupal\content_sync\Normalizer\ContentEntityNormalizer
-    arguments: ['@entity.manager', '@plugin.manager.sync_normalizer_decorator']
+    arguments: ['@entity_type.manager', '@entity_type.repository', '@entity_field.manager', '@entity_type.bundle.info', '@entity.repository', '@plugin.manager.sync_normalizer_decorator']
     tags:
       - { name: normalizer, priority: 6 }
   content_sync.normalizer.file_entity:
     class: Drupal\content_sync\Normalizer\FileEntityNormalizer
-    arguments: ['@entity.manager', '@plugin.manager.sync_normalizer_decorator', '@file_system']
+    arguments: ['@entity_type.manager', '@entity_type.repository', '@entity_field.manager', '@entity_type.bundle.info', '@entity.repository', '@plugin.manager.sync_normalizer_decorator', '@file_system']
     tags:
       - { name: normalizer, priority: 7 }
   content_sync.normalizer.user_entity:
     class: Drupal\content_sync\Normalizer\UserEntityNormalizer
-    arguments: ['@entity.manager', '@plugin.manager.sync_normalizer_decorator']
+    arguments: ['@entity_type.manager', '@entity_type.repository', '@entity_field.manager', '@entity_type.bundle.info', '@entity.repository', '@plugin.manager.sync_normalizer_decorator']
     tags:
       - { name: normalizer, priority: 7 }
   content_sync.normalizer.text_item:

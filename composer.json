@@ -36,12 +36,12 @@
   "minimum-stability": "dev",
   "suggest": {},
   "require": {
-    "drupal/core": "^8.6.10"
+    "drupal/core": "^8.8 || ^9"
   },
   "extra": {
     "drush": {
       "services": {
-        "drush.services.yml": "^9"
+        "drush.services.yml": "^9 || ^10"
       }
     }
   }
