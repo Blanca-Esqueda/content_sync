@@ -7,8 +7,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\Core\TempStore\PrivateTempStoreFactory;
-use Drupal\Core\File\FileSystemInterface;
+use Drupal\user\PrivateTempStoreFactory;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -24,14 +23,14 @@ class ContentExportMultiple extends ConfirmFormBase {
   /**
    * Entity type manager service.
    *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   * @var EntityTypeManagerInterface
    */
   protected $entityTypeManager;
 
   /**
    * Private Temp Store Factory service.
    *
-   * @var \Drupal\Core\TempStore\PrivateTempStoreFactory
+   * @var PrivateTempStoreFactory
    */
   protected $tempStoreFactory;
 
@@ -55,17 +54,16 @@ class ContentExportMultiple extends ConfirmFormBase {
   /**
    * Constructs a ContentSyncMultiple form object.
    *
-   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $temp_store_factory
+   * @param \Drupal\user\PrivateTempStoreFactory $temp_store_factory
    *   The tempstore factory.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $manager
    *   The entity type manager.
    */
-  public function __construct(PrivateTempStoreFactory $temp_store_factory, EntityTypeManagerInterface $manager, ContentSyncManagerInterface $content_sync_manager, array $formats, FileSystemInterface $file_system) {
+  public function __construct(PrivateTempStoreFactory $temp_store_factory, EntityTypeManagerInterface $manager, ContentSyncManagerInterface $content_sync_manager, array $formats) {
     $this->tempStoreFactory = $temp_store_factory;
     $this->entityTypeManager = $manager;
     $this->contentSyncManager = $content_sync_manager;
     $this->formats = $formats;
-    $this->fileSystem = $file_system;
   }
 
   /**
@@ -73,11 +71,10 @@ class ContentExportMultiple extends ConfirmFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('tempstore.private'),
+      $container->get('user.private_tempstore'),
       $container->get('entity_type.manager'),
       $container->get('content_sync.manager'),
-      $container->getParameter('serializer.formats'),
-      $container->get('file_system')
+      $container->getParameter('serializer.formats')
     );
   }
 
@@ -150,7 +147,7 @@ class ContentExportMultiple extends ConfirmFormBase {
 
     if ($form_state->getValue('confirm') && !empty($this->entityList)) {
       // Delete the content tar file in case an older version exist.
-      $this->fileSystem->delete($this->getTempFile());
+      file_unmanaged_delete($this->getTempFile());
 
       $entities_list = [];
       foreach ($this->entityList as $entity_info) {

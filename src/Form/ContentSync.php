@@ -95,8 +95,9 @@ class ContentSync extends FormBase {
       $target = $site_config->get('uuid');
       // Get site uuid from content sync folder
       $source = $this->syncStorage->read('site.uuid');
-      if ($source && $source['site_uuid'] !== $target) {
-        $this->messenger()->addError($this->t('The staged content cannot be imported, because it originates from a different site than this site. You can only synchronize content between cloned instances of this site.'));
+
+      if ($source['site_uuid'] !== $target) {
+        drupal_set_message($this->t('The staged content cannot be imported, because it originates from a different site than this site. You can only synchronize content between cloned instances of this site.'), 'error');
         $form['actions']['#access'] = FALSE;
         return $form;
       }

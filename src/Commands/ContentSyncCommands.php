@@ -15,6 +15,7 @@ use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
@@ -55,6 +56,8 @@ class ContentSyncCommands extends DrushCommands {
   protected $contentStorageSync;
 
   protected $contentSyncManager;
+
+  protected $entityManager;
 
   protected $entityTypeManager;
 
@@ -134,6 +137,8 @@ class ContentSyncCommands extends DrushCommands {
    *   The contentStorageSync.
    * @param \Drupal\content_sync\ContentSyncManagerInterface $contentSyncManager
    *   The contentSyncManager.
+   * @param \Drupal\Core\Entity\EntityManagerInterface $entityManager
+   *   The entityManager.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entityTypeManager.
    * @param \Drupal\content_sync\Exporter\ContentExporterInterface $content_exporter
@@ -153,12 +158,13 @@ class ContentSyncCommands extends DrushCommands {
    * @param \Drupal\Core\StringTranslation\TranslationInterface $stringTranslation
    *   The stringTranslation.
    */
-  public function __construct(ConfigManagerInterface $configManager, StorageInterface $contentStorage, StorageInterface $contentStorageSync, ContentSyncManagerInterface $contentSyncManager, EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ModuleHandlerInterface $moduleHandler, EventDispatcherInterface $eventDispatcher, LockBackendInterface $lock, TypedConfigManagerInterface $configTyped, ModuleInstallerInterface $moduleInstaller, ThemeHandlerInterface $themeHandler, TranslationInterface $stringTranslation) {
+  public function __construct(ConfigManagerInterface $configManager, StorageInterface $contentStorage, StorageInterface $contentStorageSync, ContentSyncManagerInterface $contentSyncManager, EntityManagerInterface $entityManager, EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ModuleHandlerInterface $moduleHandler, EventDispatcherInterface $eventDispatcher, LockBackendInterface $lock, TypedConfigManagerInterface $configTyped, ModuleInstallerInterface $moduleInstaller, ThemeHandlerInterface $themeHandler, TranslationInterface $stringTranslation) {
     parent::__construct();
     $this->configManager = $configManager;
     $this->contentStorage = $contentStorage;
     $this->contentStorageSync = $contentStorageSync;
     $this->contentSyncManager = $contentSyncManager;
+    $this->entityManager = $entityManager;
     $this->entityTypeManager = $entity_type_manager;
     $this->contentExporter = $content_exporter;
     $this->moduleHandler = $moduleHandler;

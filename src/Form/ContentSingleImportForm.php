@@ -95,14 +95,14 @@ class ContentSingleImportForm extends FormBase {
     $data = $form_state->getValue('import');
     $entity = $this->contentImporter->importEntity($data);
     if ($entity) {
-      $this->messenger()->addStatus($this->t('Entity @label (@entity_type: @id) imported successfully.', [
+      drupal_set_message($this->t('Entity @label (@entity_type: @id) imported successfully.', [
         '@label' => $entity->label(),
         '@entity_type' => $entity->getEntityTypeId(),
         '@id' => $entity->id(),
       ]));
     }
     else {
-      $this->messenger()->addError($this->t('Entity could not be imported.'));
+      drupal_set_message($this->t('Entity could not be imported.'), 'error');
     }
   }
 }

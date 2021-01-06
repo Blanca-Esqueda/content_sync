@@ -25,7 +25,7 @@ class ContentImportForm extends FormBase {
     $directory_is_writable = is_writable($directory);
     if (!$directory_is_writable) {
       $this->logger('content_sync')->error('The directory %directory is not writable.', ['%directory' => $directory, 'link' => 'Import Archive']);
-      $this->messenger()->addError($this->t('The directory %directory is not writable.', ['%directory' => $directory]));
+      drupal_set_message($this->t('The directory %directory is not writable.', ['%directory' => $directory]), 'error');
     }
 
     $form['import_tarball'] = [
@@ -71,12 +71,12 @@ class ContentImportForm extends FormBase {
           $files[] = $file['filename'];
         }
         $archiver->extractList($files, $directory);
-        $this->messenger()->addStatus($this->t('Your content files were successfully uploaded'));
+        drupal_set_message($this->t('Your content files were successfully uploaded'));
         $this->logger('content_sync')->notice('Your content files were successfully uploaded', ['link' => 'Import Archive']);
         $form_state->setRedirect('content.sync');
       }
       catch (\Exception $e) {
-        $this->messenger()->addError($this->t('Could not extract the contents of the tar file. The error message is <em>@message</em>', ['@message' => $e->getMessage()]));
+        drupal_set_message($this->t('Could not extract the contents of the tar file. The error message is <em>@message</em>', ['@message' => $e->getMessage()]), 'error');
         $this->logger('content_sync')->error('Could not extract the contents of the tar file. The error message is <em>@message</em>', ['@message' => $e->getMessage(), 'link' => 'Import Archive']);
       }
       drupal_flush_all_caches();
