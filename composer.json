@@ -32,7 +32,7 @@
   "support": {
     "issues": "http://drupal.org/project/content_sync"
   },
-  "license": "GPL-2.0+",
+  "license": "GPL-2.0-or-later",
   "minimum-stability": "dev",
   "suggest": {},
   "require": {
