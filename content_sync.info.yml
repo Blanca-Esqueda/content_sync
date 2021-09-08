@@ -1,6 +1,6 @@
 name: 'Content Sync'
 type: module
-description: 'Allows to import/export content using YAML files'
+description: 'Allows users to import/export content using YAML files.'
 package: Custom
 core: 8.x
 core_version_requirement: ^8 || ^9
