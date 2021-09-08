@@ -497,7 +497,7 @@ SUGGESTIONS
 
     // Release.
     $module_info = Yaml::decode(file_get_contents($this->moduleHandler->getModule('content_sync')->getPathname()));
-    $version = (isset($module_info['version']) && !preg_match('/^8.x-5.\d+-.*-dev$/', $module_info['version'])) ? $module_info['version'] : '8.x-1.x-dev';
+    $version = (isset($module_info['version']) && !preg_match('/^8.x-\d.\d+-.*-dev$/', $module_info['version'])) ? $module_info['version'] : '8.x-2.x-dev';
     $installed_version = $this->state->get('content_sync.version');
     // Reset storage state if the version has changed.
     if ($installed_version != $version) {
