@@ -141,9 +141,11 @@ class ContentImporter implements ContentImporterInterface {
   protected function alterMenuLink(array $decoded_entity) {
     $referenced_entity_uuid = reset($decoded_entity["_content_sync"]["menu_entity_link"]);
     $referenced_entity_type = key($decoded_entity["_content_sync"]["menu_entity_link"]);
-    if ($referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)) {
+    if (
+      !preg_match('/^internal:/', $decoded_entity["link"][0]["uri"])
+      && $referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)
+    ) {
       $url = $referenced_entity->toUrl();
-
       // Convert entity URIs to the entity scheme, if the path matches a route
       // of the form "entity.$entity_type_id.canonical".
       // @see \Drupal\Core\Url::fromEntityUri()
@@ -158,7 +160,6 @@ class ContentImporter implements ContentImporterInterface {
         //$uri = $url->toUriString();
         $uri = $url->getUri();
       }
-
       $decoded_entity["link"][0]["uri"] = $uri;
     }
     return $decoded_entity;
