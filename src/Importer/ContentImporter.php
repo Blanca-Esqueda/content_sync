@@ -143,7 +143,23 @@ class ContentImporter implements ContentImporterInterface {
     $referenced_entity_type = key($decoded_entity["_content_sync"]["menu_entity_link"]);
     if ($referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)) {
       $url = $referenced_entity->toUrl();
-      $decoded_entity["link"][0]["uri"] = $url->toUriString();
+
+      // Convert entity URIs to the entity scheme, if the path matches a route
+      // of the form "entity.$entity_type_id.canonical".
+      // @see \Drupal\Core\Url::fromEntityUri()
+      if ($url->isRouted()) {
+        $route_name = $url->getRouteName();
+        foreach (array_keys($this->entityTypeManager->getDefinitions()) as $entity_type_id) {
+          if ($route_name == "entity.{$entity_type_id}.canonical" && isset($url->getRouteParameters()[$entity_type_id])) {
+            $uri = "entity:{$entity_type_id}/" . $url->getRouteParameters()[$entity_type_id];
+          }
+        }
+      }else{
+        //$uri = $url->toUriString();
+        $uri = $url->getUri();
+      }
+
+      $decoded_entity["link"][0]["uri"] = $uri;
     }
     return $decoded_entity;
   }
