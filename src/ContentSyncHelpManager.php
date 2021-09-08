@@ -175,7 +175,7 @@ class ContentSyncHelpManager implements ContentSyncHelpManagerInterface {
       '#suffix' => '</p>',
     ];
     $build['sections'] = [
-      '#prefix' => '<div class="content_sync-help content_sync-help-accordion">',
+      '#prefix' => '<div class="content_sync-help">',
       '#suffix' => '</div>',
     ];
     $build['sections']['uses'] = $this->buildUses();

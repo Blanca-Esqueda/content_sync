@@ -16,20 +16,58 @@
 /**
  * Help page.
  */
+.content_sync-help h2 {
+  margin-bottom: 20px;
+}
+
+.content_sync-help h2 + div {
+  margin-bottom: 30px;
+}
+
 .content_sync-help h4 {
   font-size: 1em;
   text-transform: uppercase;
+}
+
+.content_sync-help a,
+.content_sync-help ~ .links a {
+  text-decoration: underline;
+}
+
+.content_sync-help a:hover,
+.content_sync-help ~ .links a:hover {
+  text-decoration: none;
+}
+
+.content_sync-help a:focus,
+.content_sync-help ~ .links a:focus {
+  outline: 1px dotted;
+  text-decoration: none;
+}
+
+.content_sync-help dt a {
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.content_sync-help dt a:hover {
+  text-decoration: underline;
+}
+
+.content_sync-help img {
+  width: 100%;
+  height: auto;
 }
 
 .content_sync-help .button.button--primary {
   width: 100%;
   max-width: 600px;
   margin: 0;
+  text-decoration: none;
 }
 
-.content_sync-help img {
-  width: 100%;
-  height: auto;
+.content_sync-help .button:focus {
+  outline: none;
 }
 
 .content_sync-help .content_sync-help-video-youtube {
