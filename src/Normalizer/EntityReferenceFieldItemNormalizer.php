@@ -59,7 +59,8 @@ class EntityReferenceFieldItemNormalizer extends FieldItemNormalizer {
       // Add a 'url' value if there is a reference and a canonical URL. Hard
       // code 'canonical' here as config entities override the default $rel
       // parameter value to 'edit-form.
-      if ($url = $entity->url('canonical')) {
+      if ($entity->hasLinkTemplate('canonical')) {
+        $url = $entity->toUrl('canonical')->toString();
         $values['url'] = $url;
       }
     }
@@ -80,7 +81,7 @@ class EntityReferenceFieldItemNormalizer extends FieldItemNormalizer {
       if (!empty($data['target_type']) && $target_type !== $data['target_type']) {
         throw new UnexpectedValueException(sprintf('The field "%s" property "target_type" must be set to "%s" or omitted.', $field_item->getFieldDefinition()->getName(), $target_type));
       }
-              
+
       if ($entity = $this->entityRepository->loadEntityByUuid($target_type, $data['target_uuid'])) {
 
         if (is_a($entity, RevisionableInterface::class, TRUE)) {

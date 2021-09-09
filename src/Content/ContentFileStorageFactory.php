@@ -18,7 +18,7 @@ class ContentFileStorageFactory {
   public static function getActive() {
     // Load the class from a different namespace.
     $class = "Drupal\\Core\\Config\\FileStorage";
-    return new $class(content_sync_get_content_directory(CONFIG_ACTIVE_DIRECTORY)."/entities");
+    return new $class(content_sync_get_content_directory('active') . "/entities");
   }
 
   /**
@@ -29,6 +29,6 @@ class ContentFileStorageFactory {
   public static function getSync() {
     // Load the class from a different namespace.
     $class = "Drupal\\Core\\Config\\FileStorage";
-    return new $class(content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities");
+    return new $class(content_sync_get_content_directory('sync') . "/entities");
   }
 }

@@ -13,6 +13,8 @@ use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\Core\Url;
 use Drupal\user\Entity\User;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Link;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -63,7 +65,8 @@ class ContentLogController extends ControllerBase {
       $container->get('database'),
       $container->get('module_handler'),
       $container->get('date.formatter'),
-      $container->get('form_builder')
+      $container->get('form_builder'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -79,12 +82,12 @@ class ContentLogController extends ControllerBase {
    * @param \Drupal\Core\Form\FormBuilderInterface $form_builder
    *   The form builder service.
    */
-  public function __construct(Connection $database, ModuleHandlerInterface $module_handler, DateFormatterInterface $date_formatter, FormBuilderInterface $form_builder) {
+  public function __construct(Connection $database, ModuleHandlerInterface $module_handler, DateFormatterInterface $date_formatter, FormBuilderInterface $form_builder, EntityTypeManagerInterface $entity_type_manager) {
     $this->database = $database;
     $this->moduleHandler = $module_handler;
     $this->dateFormatter = $date_formatter;
     $this->formBuilder = $form_builder;
-    $this->userStorage = $this->entityManager()->getStorage('user');
+    $this->userStorage = $entity_type_manager->getStorage('user');
   }
 
   /**
@@ -259,11 +262,11 @@ class ContentLogController extends ControllerBase {
         ],
         [
           ['data' => $this->t('Location'), 'header' => TRUE],
-          $this->l($cslog->location, $cslog->location ? Url::fromUri($cslog->location) : Url::fromRoute('<none>')),
+          Link::fromTextAndUrl($cslog->location, $cslog->location ? Url::fromUri($cslog->location) : Url::fromRoute('<none>'))->toString(),
         ],
         [
           ['data' => $this->t('Referrer'), 'header' => TRUE],
-          $this->l($cslog->referer, $cslog->referer ? Url::fromUri($cslog->referer) : Url::fromRoute('<none>')),
+          Link::fromTextAndUrl($cslog->referer, $cslog->referer ? Url::fromUri($cslog->referer) : Url::fromRoute('<none>'))->toString(),
         ],
         [
           ['data' => $this->t('Message'), 'header' => TRUE],

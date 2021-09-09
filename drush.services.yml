@@ -1,6 +1,6 @@
 services:
   content_sync.commands:
     class: \Drupal\content_sync\Commands\ContentSyncCommands
-    arguments: ['@config.manager', '@content.storage', '@content.storage.sync', '@content_sync.manager', '@entity.manager','@entity_type.manager', '@content_sync.exporter', '@module_handler', '@event_dispatcher', '@lock', '@config.typed', '@module_installer', '@theme_handler', '@string_translation']
+    arguments: ['@config.manager', '@content.storage', '@content.storage.sync', '@content_sync.manager', '@entity_type.manager', '@content_sync.exporter', '@module_handler', '@event_dispatcher', '@lock', '@config.typed', '@module_installer', '@theme_handler', '@string_translation']
     tags:
       - { name: drush.command }
