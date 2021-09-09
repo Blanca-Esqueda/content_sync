@@ -80,7 +80,7 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
     }
     else {
       list($entity_type_id, $bundle, $uuid) = explode('.', $identifier);
-      $file_path = content_sync_get_content_directory(CONFIG_SYNC_DIRECTORY)."/entities/".$entity_type_id."/".$bundle."/".$identifier.".yml";
+      $file_path = content_sync_get_content_directory('sync') . "/entities/" . $entity_type_id . "/" . $bundle . "/" . $identifier . ".yml";
       $raw_entity = file_get_contents($file_path);
 
       // Problems to open the .yml file.

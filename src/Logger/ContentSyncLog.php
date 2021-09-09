@@ -61,20 +61,20 @@ class ContentSyncLog implements LoggerInterface {
     // Convert PSR3-style messages to SafeMarkup::format() style, so they can be
     // translated too in runtime.
     $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
-    if(Unicode::substr($context['channel'], 0, 64) == "content_sync") {
+    if (mb_substr($context['channel'], 0, 64) == "content_sync") {
       try {
         $this->connection
           ->insert('cs_logs')
           ->fields([
             'uid' => $context['uid'],
-            'type' => Unicode::substr($context['channel'], 0, 64),
+            'type' => mb_substr($context['channel'], 0, 64),
             'message' => $message,
             'variables' => serialize($message_placeholders),
             'severity' => $level,
             'link' => $context['link'],
             'location' => $context['request_uri'],
             'referer' => $context['referer'],
-            'hostname' => Unicode::substr($context['ip'], 0, 128),
+            'hostname' => mb_substr($context['ip'], 0, 128),
             'timestamp' => $context['timestamp'],
           ])
           ->execute();

@@ -5,7 +5,7 @@ namespace Drupal\content_sync\Plugin\SyncNormalizerDecorator;
 
 use Drupal\content_sync\Plugin\SyncNormalizerDecoratorBase;
 use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\Core\Path\AliasManager;
+use Drupal\path_alias\AliasManager;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -20,7 +20,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class Alias extends SyncNormalizerDecoratorBase implements ContainerFactoryPluginInterface {
 
   /**
-   * @var \Drupal\Core\Path\AliasManager
+   * @var \Drupal\path_alias\AliasManager
    */
   protected $aliasManager;
 
@@ -42,7 +42,7 @@ class Alias extends SyncNormalizerDecoratorBase implements ContainerFactoryPlugi
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('path.alias_manager')
+      $container->get('path_alias.manager')
     );
   }
 
