@@ -14,6 +14,7 @@ use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\RevisionableInterface;
 use Drupal\Core\Url;
 use Drupal\menu_link_content\Entity\MenuLinkContent;
+use Drupal\path_alias\Entity\PathAlias;
 use Drupal\serialization\Normalizer\ContentEntityNormalizer as BaseContentEntityNormalizer;
 
 /**
@@ -133,6 +134,13 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
         $referenced_entities[] = $entity;
       }
     }
+    // Add node uuid for path alias if any.
+    if ($object->getEntityTypeId() == 'path_alias') {
+      if ($entity = $this->getPathLinkNodeAttached($object)) {
+        $normalized_data['_content_sync']['path_alias'][$entity->getEntityTypeId()] = $entity->uuid();
+        $referenced_entities[] = $entity;
+      }
+    }
 
     if (!empty($referenced_entities)) {
       $dependencies = [];
@@ -200,6 +208,32 @@ class ContentEntityNormalizer extends BaseContentEntityNormalizer {
     }
     catch (\Exception $e) {
       // If menu link is linked to a non-node page - just do nothing.
+    }
+  }
+
+  /**
+    * Gets a node attached to a path alias. The node has already been imported.
+    *
+    * @param \Drupal\path_alias\Entity\PathAlias $object
+    *   Menu Link Entity.
+    *
+    * @return \Drupal\Core\Entity\EntityInterface|null
+    *   Node Entity.
+    *
+    */
+  protected function getPathLinkNodeAttached(PathAlias $object) {
+    $path = $object->getPath();
+    try {
+      $url = Url::fromUri('internal:' . $path);
+      $route_parameters = $url->getRouteParameters();
+      if (count($route_parameters) == 1) {
+        $entity_id = reset($route_parameters);
+        $entity_type = key($route_parameters);
+        return \Drupal::entityTypeManager()->getStorage($entity_type)->load($entity_id);
+      }
+    }
+    catch (\Exception $e) {
+      // If path is linked to a non-node page - just do nothing.
     }
   }
 

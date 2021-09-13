@@ -53,6 +53,11 @@ class ContentImporter implements ContentImporterInterface {
       $decoded_entity = $this->alterMenuLink($decoded_entity);
     }
 
+    // Replace a Path Alias to a node with an actual one.
+    if ($entity_type_id == 'path_alias' && !empty($decoded_entity["_content_sync"]["path_alias"])) {
+      $decoded_entity = $this->alterPathAlias($decoded_entity);
+    }
+
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
 
     //Exception for parent null -- allowing the term to be displayed on the taxonomy list.
@@ -163,6 +168,24 @@ class ContentImporter implements ContentImporterInterface {
       $decoded_entity["link"][0]["uri"] = $uri;
     }
     return $decoded_entity;
+  }
+
+  /**
+  * Replaces a path to a node with an actual one.
+  *
+  * @param array $decoded_entity
+  *   Array of entity values.
+  *
+  * @return array
+  *   Array of entity values with the path  values changed.
+  */
+  protected function alterPathAlias(array $decoded_entity) {
+    $referenced_entity_uuid = reset($decoded_entity["_content_sync"]["path_alias"]);
+    $referenced_entity_type = key($decoded_entity["_content_sync"]["path_alias"]);
+    if ($referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)) {
+      $decoded_entity["path"][0]["value"] = '/' . $referenced_entity_type . '/' . $referenced_entity->id();
+    }
+  return $decoded_entity;
   }
 
   /**
