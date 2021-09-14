@@ -134,7 +134,8 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
       $scheme = \Drupal::service('stream_wrapper_manager')->getScheme($uri);
       $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
       $destination = str_replace($scheme . '://', $destination, $uri);
-      $this->fileSystem->prepareDirectory($this->fileSystem->dirname($destination), FileSystemInterface::CREATE_DIRECTORY);
+      $prep_dir = $this->fileSystem->dirname($destination);
+      $this->fileSystem->prepareDirectory($prep_dir, FileSystemInterface::CREATE_DIRECTORY);
       $this->fileSystem->copy($uri, $destination, FileSystemInterface::EXISTS_REPLACE);
     }
 
