@@ -171,7 +171,8 @@ trait ContentExportTrait {
               // Invalidate the CS Cache of the entity.
               $cache = \Drupal::cache('content')->invalidate($entity_type.".".$bundle.":".$name);
 
-              if($serializer_context['include_dependencies']){
+              if (isset($serializer_context['include_dependencies'])
+                  && $serializer_context['include_dependencies']) {
                 //Include Dependencies
                 $context['exported'][$name] = $name;
                 if (!isset($context['sandbox']['dependencies'][$name])) {
