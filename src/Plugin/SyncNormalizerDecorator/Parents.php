@@ -53,9 +53,23 @@ class Parents extends SyncNormalizerDecoratorBase implements ContainerFactoryPlu
     if ($entity->hasField('parent')) {
       $entity_type = $entity->getEntityTypeId();
       $storage = $this->entityTypeManager->getStorage($entity_type);
+
+      $existing_parent_uuids = [];
+      if (!empty($normalized_entity['parent'])) {
+        foreach ($normalized_entity['parent'] as $delta => $field_item_data) {
+          if (empty($field_item_data['target_uuid'])) {
+            continue;
+          }
+          $existing_parent_uuids[] = $field_item_data['target_uuid'];
+        }
+      }
+
       if (method_exists($storage, 'loadParents')) {
         $parents = $storage->loadParents($entity->id());
         foreach ($parents as $parent_key => $parent) {
+          if (in_array($parent->uuid(), $existing_parent_uuids)) {
+            continue;
+          }
           $normalized_entity['parent'][] = [
             'target_type' => $entity_type,
             'target_uuid' => $parent->uuid(),
@@ -69,7 +83,8 @@ class Parents extends SyncNormalizerDecoratorBase implements ContainerFactoryPlu
           $parent_uuid = substr($tmp, 1);
           $parents = $storage->loadByProperties(['uuid' => $parent_uuid]);
           $parent = !empty($parents) ? reset($parents) : null;
-          if (!empty($parent)) {
+          if (!empty($parent)
+            && !in_array($parent_uuid, $existing_parent_uuids) ) {
             $normalized_entity['parent'][] = [
               'target_type' => $entity_type,
               'target_uuid' => $parent_uuid,
@@ -80,5 +95,4 @@ class Parents extends SyncNormalizerDecoratorBase implements ContainerFactoryPlu
       }
     }
   }
-
 }
