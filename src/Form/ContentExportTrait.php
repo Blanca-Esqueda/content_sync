@@ -58,10 +58,15 @@ trait ContentExportTrait {
     foreach ($entities as $entity) {
       $operations[] = [[$this, 'processContentExportFiles'], [[$entity], $serializer_context]];
     }
-    //Set Batch
+    $title = 'Exporting content';
+    if (isset($serializer_context['export_type'])
+        && $serializer_context['export_type'] == 'snapshot') {
+      $title = 'Building Snapshot';
+    }
+    // Set Batch
     $batch = [
       'operations' => $operations,
-      'title' => $this->t('Exporting content'),
+      'title' => $this->t($title),
       'init_message' => $this->t('Starting content export.'),
       'progress_message' => $this->t('Completed @current step of @total.'),
       'error_message' => $this->t('Content export has encountered an error.'),
