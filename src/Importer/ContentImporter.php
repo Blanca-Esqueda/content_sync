@@ -37,7 +37,6 @@ class ContentImporter implements ContentImporterInterface {
 
   public function importEntity($decoded_entity, $context = []) {
     $context = $this->context + $context;
-
     if (!empty($context['entity_type'])) {
       $entity_type_id = $context['entity_type'];
     }
@@ -46,16 +45,6 @@ class ContentImporter implements ContentImporterInterface {
     }
     else {
       return NULL;
-    }
-
-    // Replace a menu link to a node with an actual one.
-    if ($entity_type_id == 'menu_link_content' && !empty($decoded_entity["_content_sync"]["menu_entity_link"])) {
-      $decoded_entity = $this->alterMenuLink($decoded_entity);
-    }
-
-    // Replace a Path Alias to a node with an actual one.
-    if ($entity_type_id == 'path_alias' && !empty($decoded_entity["_content_sync"]["path_alias"])) {
-      $decoded_entity = $this->alterPathAlias($decoded_entity);
     }
 
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
@@ -132,60 +121,6 @@ class ContentImporter implements ContentImporterInterface {
       $entity_translation->save();
     }
 
-  }
-
-  /**
-   * Replaces a link to a node with an actual one.
-   *
-   * @param array $decoded_entity
-   *   Array of entity values.
-   *
-   * @return array
-   *   Array of entity values with the link values changed.
-   */
-  protected function alterMenuLink(array $decoded_entity) {
-    $referenced_entity_uuid = reset($decoded_entity["_content_sync"]["menu_entity_link"]);
-    $referenced_entity_type = key($decoded_entity["_content_sync"]["menu_entity_link"]);
-    if (
-      !preg_match('/^internal:/', $decoded_entity["link"][0]["uri"])
-      && $referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)
-    ) {
-      $url = $referenced_entity->toUrl();
-      // Convert entity URIs to the entity scheme, if the path matches a route
-      // of the form "entity.$entity_type_id.canonical".
-      // @see \Drupal\Core\Url::fromEntityUri()
-      if ($url->isRouted()) {
-        $route_name = $url->getRouteName();
-        foreach (array_keys($this->entityTypeManager->getDefinitions()) as $entity_type_id) {
-          if ($route_name == "entity.{$entity_type_id}.canonical" && isset($url->getRouteParameters()[$entity_type_id])) {
-            $uri = "entity:{$entity_type_id}/" . $url->getRouteParameters()[$entity_type_id];
-          }
-        }
-      }else{
-        //$uri = $url->toUriString();
-        $uri = $url->getUri();
-      }
-      $decoded_entity["link"][0]["uri"] = $uri;
-    }
-    return $decoded_entity;
-  }
-
-  /**
-  * Replaces a path to a node with an actual one.
-  *
-  * @param array $decoded_entity
-  *   Array of entity values.
-  *
-  * @return array
-  *   Array of entity values with the path  values changed.
-  */
-  protected function alterPathAlias(array $decoded_entity) {
-    $referenced_entity_uuid = reset($decoded_entity["_content_sync"]["path_alias"]);
-    $referenced_entity_type = key($decoded_entity["_content_sync"]["path_alias"]);
-    if ($referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)) {
-      $decoded_entity["path"][0]["value"] = '/' . $referenced_entity_type . '/' . $referenced_entity->id();
-    }
-  return $decoded_entity;
   }
 
   /**

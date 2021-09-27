@@ -8,6 +8,10 @@ trait SyncNormalizerDecoratorTrait {
 
   protected function decorateNormalization(array &$normalized_entity, ContentEntityInterface $entity, $format, array $context = []) {
     $plugins = $this->getDecoratorManager()->getDefinitions();
+    // Make sure ID cleaner is the last plugin.
+    $v = $plugins['id_cleaner'];
+    unset($plugins['id_cleaner']);
+    $plugins['id_cleaner'] = $v;
     foreach ($plugins as $decorator) {
       /* @var $instance SyncNormalizerDecoratorInterface */
       $instance = $this->getDecoratorManager()->createInstance($decorator['id']);
@@ -17,6 +21,10 @@ trait SyncNormalizerDecoratorTrait {
 
   protected function decorateDenormalization(array &$normalized_entity, $type, $format, array $context = []) {
     $plugins = $this->getDecoratorManager()->getDefinitions();
+    // Make sure ID cleaner is the last plugin.
+    $v = $plugins['id_cleaner'];
+    unset($plugins['id_cleaner']);
+    $plugins['id_cleaner'] = $v;
     foreach ($plugins as $decorator) {
       /* @var $instance SyncNormalizerDecoratorInterface */
       $instance = $this->getDecoratorManager()->createInstance($decorator['id']);
@@ -26,6 +34,10 @@ trait SyncNormalizerDecoratorTrait {
 
   protected function decorateDenormalizedEntity(ContentEntityInterface $entity, array $normalized_entity, $format, array $context = []) {
     $plugins = $this->getDecoratorManager()->getDefinitions();
+    // Make sure ID cleaner is the last plugin.
+    $v = $plugins['id_cleaner'];
+    unset($plugins['id_cleaner']);
+    $plugins['id_cleaner'] = $v;
     foreach ($plugins as $decorator) {
       /* @var $instance SyncNormalizerDecoratorInterface */
       $instance = $this->getDecoratorManager()->createInstance($decorator['id']);
