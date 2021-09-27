@@ -142,7 +142,11 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
       $destination = str_replace($scheme . '://', $destination, $uri);
       $prep_dir = $this->fileSystem->dirname($destination);
       $this->fileSystem->prepareDirectory($prep_dir, FileSystemInterface::CREATE_DIRECTORY);
-      $this->fileSystem->copy($uri, $destination, FileSystemInterface::EXISTS_REPLACE);
+      // Exception for when the file doesn't exist
+      // TODO: add a notice/log about it.
+      if (file_exists($uri)) {
+        $this->fileSystem->copy($uri, $destination, FileSystemInterface::EXISTS_REPLACE);
+      }
     }
 
     // Set base64-encoded file contents to the "data" property.

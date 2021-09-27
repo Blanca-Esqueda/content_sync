@@ -162,7 +162,11 @@ trait ContentExportTrait {
                   $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
                   $destination = str_replace($scheme . '://', $destination, $uri);
                   $strip_path = str_replace('/files' , '', $serializer_context['content_sync_directory_files'] );
-                  $this->getArchiver()->addModify([$destination], '', $strip_path);
+                  // Exception for when the file doesn't exist
+                  // TODO: add a notice/log about it.
+                  if (file_exists($destination)) {
+                    $this->getArchiver()->addModify([$destination], '', $strip_path);
+                  }
                 }
               }
               if( $serializer_context['export_type'] == 'folder') {
