@@ -171,9 +171,9 @@ trait ContentImportTrait {
     }
     $context['results'][] = TRUE;
     $context['sandbox']['progress']++;
-    $context['message'] = $message;
 
-    if ($error) {
+    if (isset($error) && $error) {
+      $context['message'] = $message;
       if (!isset($context['results']['errors'])) {
         $context['results']['errors'] = [];
       }

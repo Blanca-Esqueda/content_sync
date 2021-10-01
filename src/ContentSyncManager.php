@@ -67,6 +67,7 @@ class ContentSyncManager implements ContentSyncManagerInterface {
   public function generateImportQueue($file_names, $directory) {
     $queue = [];
     foreach ($file_names as $file) {
+      if ($file == 'site.uuid') continue;
       $ids = explode('.', $file);
       list($entity_type_id, $bundle, $uuid) = $ids;
       $file_path = $directory . "/" . $entity_type_id . "/" . $bundle . "/" . $file . ".yml";
