@@ -29,12 +29,17 @@ class TimestampItemNormalizer extends BaseTimestampItemNormalizer {
       $context['datetime_allowed_formats'] = [$data['format']];
     }
     $field_item = $context['target_instance'];
+    $denormalized_data = [];
     foreach( $field_item->getProperties() as $item_key => $item){
-      $item_class = $item->getDataDefinition()->getClass();
-      if ($this->serializer->supportsDenormalization($data[$item_key], $item_class, NULL, $context)) {
-        $data[$item_key] = $this->serializer->denormalize($data[$item_key],$item_class, NULL, $context );
+      if(isset($data[$item_key])){
+        $item_class = $item->getDataDefinition()->getClass();
+        if ($this->serializer->supportsDenormalization($data[$item_key], $item_class, NULL, $context)) {
+          $denormalized_data[$item_key] = $this->serializer->denormalize($data[$item_key],$item_class, NULL, $context );
+        }else{
+          $denormalized_data[$item_key] = $data[$item_key];
+        }
       }
     }
-    return $data;
+    return $denormalized_data;
   }
 }
