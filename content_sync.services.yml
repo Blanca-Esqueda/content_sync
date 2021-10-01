@@ -95,3 +95,7 @@ services:
     tags:
       - { name: normalizer, priority: 9 }
     arguments: ['@entity.repository','@entity_type.manager']
+  content_sync.normalizer.timestamp_item:
+    class: Drupal\content_sync\Normalizer\TimestampItemNormalizer
+    tags:
+      - { name: normalizer, priority: 8, bc: bc_timestamp_normalizer_unix, bc_config_name: 'serialization.settings' }
