@@ -99,3 +99,8 @@ services:
     class: Drupal\content_sync\Normalizer\TimestampItemNormalizer
     tags:
       - { name: normalizer, priority: 8, bc: bc_timestamp_normalizer_unix, bc_config_name: 'serialization.settings' }
+  content_sync.normalizer.paragraph_entity:
+    class: Drupal\content_sync\Normalizer\ParagraphEntityNormalizer
+    arguments: ['@entity_type.manager', '@entity_type.repository', '@entity_field.manager', '@plugin.manager.sync_normalizer_decorator','@entity.repository']
+    tags:
+      - { name: normalizer, priority: 7 }
