@@ -163,10 +163,17 @@ class ContentImporter implements ContentImporterInterface {
   protected function processSerializedFields($entity) {
     foreach ($entity->getTypedData() as $name => $field_items) {
       foreach ($field_items as $field_item) {
-        // The field to be stored in a serialized way.
-        if (!empty($this->getCustomSerializedPropertyNames($field_item))) {
-          $unserialized_value = $field_item->get('value')->getValue();
-          $entity->set($name, is_array($unserialized_value) ? serialize($unserialized_value) : $unserialized_value);
+        // Determine whether field has serialized properties,
+        // and if so, sanitize.
+        $serialized_property_names = $this->getCustomSerializedPropertyNames($field_item);
+        if (!empty($serialized_property_names)) {
+          $field_values = $field_item->getValue();
+          foreach ($serialized_property_names as $property_name) {
+            if(isset($field_values[$property_name])){
+              $field_values[$property_name] = (is_array($field_values[$property_name])) ? serialize($field_values[$property_name]) : $field_values[$property_name];
+            }
+          }
+          $entity->set($name, $field_values);
         }
       }
     }
