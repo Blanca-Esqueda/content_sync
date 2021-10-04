@@ -88,20 +88,20 @@ class ParagraphEntityNormalizer extends ContentEntityNormalizer {
         $normalized_data['parent_id']['target_uuid'] = $target_uuid;
         // TODO: include dependency until circular dependencies is resolved.
         // Include a dependency
-        //$normalized_data['_content_sync']['entity_dependencies'][$target_type][] = $dependency;
-        // Remove target revision id as we are not syncing revisions.
-        if (isset($normalized_data['revision_id'])){
-          unset($normalized_data['revision_id']);
-          unset($normalized_data['revision_default']);
-          unset($normalized_data['isDefaultRevision']);
-          unset($normalized_data['revision_translation_affected']);
-        }
+        $normalized_data['_content_sync']['entity_dependencies'][$target_type][] = $dependency;
         // Remove main property - we set target_uuid
         if (!empty($normalized_data['parent_id'][0])) {
           unset($normalized_data['parent_id'][0]);
         }
       }
     }
+    // Remove target revision id as we are not syncing revisions.
+        if (isset($normalized_data['revision_id'])){
+          unset($normalized_data['revision_id']);
+          unset($normalized_data['revision_default']);
+          unset($normalized_data['isDefaultRevision']);
+          unset($normalized_data['revision_translation_affected']);
+        }
     return $normalized_data;
   }
 }
