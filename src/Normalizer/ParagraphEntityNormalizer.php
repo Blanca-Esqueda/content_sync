@@ -86,7 +86,6 @@ class ParagraphEntityNormalizer extends ContentEntityNormalizer {
         // Add the target entity UUID and type to the normalized output values.
         $normalized_data['parent_id']['target_type'] = $target_type;
         $normalized_data['parent_id']['target_uuid'] = $target_uuid;
-        // TODO: include dependency until circular dependencies is resolved.
         // Include a dependency
         $normalized_data['_content_sync']['entity_dependencies'][$target_type][] = $dependency;
         // Remove main property - we set target_uuid
