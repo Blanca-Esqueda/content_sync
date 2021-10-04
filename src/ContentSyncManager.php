@@ -80,8 +80,8 @@ class ContentSyncManager implements ContentSyncManagerInterface {
       $decoded_entities[$file] = $decoded_entity;
     }
     if (!empty($decoded_entities)) {
-      $resolver = new ImportQueueResolver();
-      $queue = $resolver->resolve($decoded_entities);
+      $resolver = new ImportQueueResolver($decoded_entities);
+      $queue = $resolver->resolve();
     }
     return $queue;
   }
