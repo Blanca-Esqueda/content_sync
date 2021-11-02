@@ -2,7 +2,6 @@
 
 namespace Drupal\content_sync\Form;
 
-use Drupal\content_sync\ContentSyncManagerInterface;
 use Drupal\Core\Archiver\ArchiveTar;
 use Drupal\content_sync\Content\ContentDatabaseStorage;
 use Drupal\Core\Entity\ContentEntityType;
@@ -274,7 +273,6 @@ trait ContentExportTrait {
         // Log the errors
         $errors = array_unique($errors);
         foreach ($errors as $error) {
-          //drupal_set_message($error, 'error');
           $this->getExportLogger()->error($error);
         }
         // Log the note that the content was exported with errors.

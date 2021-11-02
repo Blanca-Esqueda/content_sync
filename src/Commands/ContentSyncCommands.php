@@ -2,20 +2,15 @@
 
 namespace Drupal\content_sync\Commands;
 
+use Drupal\content_sync\Content\ContentStorageComparer;
 use Drupal\content_sync\ContentSyncManagerInterface;
 use Drupal\content_sync\Exporter\ContentExporterInterface;
 use Drupal\content_sync\Form\ContentExportTrait;
 use Drupal\content_sync\Form\ContentImportTrait;
-use Drupal\content_sync\Form\ContentSync;
-use Drupal\config\StorageReplaceDataWrapper;
 use Drupal\Core\Config\ConfigManagerInterface;
-use Drupal\Core\Config\FileStorage;
-use Drupal\content_sync\Content\ContentStorageComparer;
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
-use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ModuleInstallerInterface;
@@ -47,29 +42,88 @@ class ContentSyncCommands extends DrushCommands {
   use DependencySerializationTrait;
   use StringTranslationTrait;
 
-
+  /**
+   * The configuration manager.
+   *
+   * @var \Drupal\Core\Config\ConfigManagerInterface;
+   */
   protected $configManager;
 
+  /**
+   * The content storage.
+   *
+   * @var \Drupal\Core\Config\StorageInterface
+   */
   protected $contentStorage;
 
+  /**
+   * The content sync storage.
+   *
+   * @var \Drupal\Core\Config\StorageInterface
+   */
   protected $contentStorageSync;
 
+  /**
+   * The content sync manager.
+   *
+   * @var \Drupal\content_sync\ContentSyncManagerInterface
+   */
   protected $contentSyncManager;
 
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
   protected $entityTypeManager;
 
+  /**
+   * The content exporter.
+   *
+   * @var \Drupal\content_sync\Exporter\ContentExporterInterface
+   */
   protected $contentExporter;
 
+  /**
+   * The lock information for this configuration.
+   *
+   * @var \Drupal\Core\TempStore\Lock|null
+   */
   protected $lock;
 
-  protected $configTyped;
+  /**
+   * The typed config manager.
+   *
+   * @var \Drupal\Core\Config\TypedConfigManagerInterface
+   */
+  protected $typedConfigManager;
 
+  /**
+   * The module installer.
+   *
+   * @var \Drupal\Core\Extension\ModuleInstallerInterface
+   */
   protected $moduleInstaller;
 
+  /**
+   * The theme handler.
+   *
+   * @var \Drupal\Core\Extension\ThemeHandlerInterface
+   */
   protected $themeHandler;
 
+  /**
+   * The string translation service.
+   *
+   * @var \Drupal\Core\StringTranslation\TranslationInterface
+   */
   protected $stringTranslation;
 
+  /**
+   * The module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
   protected $moduleHandler;
 
   /**
@@ -144,8 +198,8 @@ class ContentSyncCommands extends DrushCommands {
    *   The eventDispatcher.
    * @param \Drupal\Core\Lock\LockBackendInterface $lock
    *   The lock.
-   * @param \Drupal\Core\Config\TypedConfigManagerInterface $configTyped
-   *   The configTyped.
+   * @param \Drupal\Core\Config\TypedConfigManagerInterface $typedConfigManager
+   *   The typedConfigManager.
    * @param \Drupal\Core\Extension\ModuleInstallerInterface $moduleInstaller
    *   The moduleInstaller.
    * @param \Drupal\Core\Extension\ThemeHandlerInterface $themeHandler
@@ -153,7 +207,7 @@ class ContentSyncCommands extends DrushCommands {
    * @param \Drupal\Core\StringTranslation\TranslationInterface $stringTranslation
    *   The stringTranslation.
    */
-  public function __construct(ConfigManagerInterface $configManager, StorageInterface $contentStorage, StorageInterface $contentStorageSync, ContentSyncManagerInterface $contentSyncManager, EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ModuleHandlerInterface $moduleHandler, EventDispatcherInterface $eventDispatcher, LockBackendInterface $lock, TypedConfigManagerInterface $configTyped, ModuleInstallerInterface $moduleInstaller, ThemeHandlerInterface $themeHandler, TranslationInterface $stringTranslation) {
+  public function __construct(ConfigManagerInterface $configManager, StorageInterface $contentStorage, StorageInterface $contentStorageSync, ContentSyncManagerInterface $contentSyncManager, EntityTypeManagerInterface $entity_type_manager, ContentExporterInterface $content_exporter, ModuleHandlerInterface $moduleHandler, EventDispatcherInterface $eventDispatcher, LockBackendInterface $lock, TypedConfigManagerInterface $typedConfigManager, ModuleInstallerInterface $moduleInstaller, ThemeHandlerInterface $themeHandler, TranslationInterface $stringTranslation) {
     parent::__construct();
     $this->configManager = $configManager;
     $this->contentStorage = $contentStorage;
@@ -164,7 +218,7 @@ class ContentSyncCommands extends DrushCommands {
     $this->moduleHandler = $moduleHandler;
     $this->eventDispatcher = $eventDispatcher;
     $this->lock = $lock;
-    $this->configTyped = $configTyped;
+    $this->typedConfigManager = $typedConfigManager;
     $this->moduleInstaller = $moduleInstaller;
     $this->themeHandler = $themeHandler;
     $this->stringTranslation = $stringTranslation;
@@ -204,34 +258,38 @@ class ContentSyncCommands extends DrushCommands {
     'entity-types' => '',
     'uuids' => '',
     'actions' => '',
-    'skiplist' => FALSE ]) {
+    'skiplist' => FALSE,
+  ]) {
 
     //Generate comparer with filters.
-    $storage_comparer = new ContentStorageComparer($this->contentStorageSync, $this->contentStorage,  $this->configManager);
+    $storage_comparer = new ContentStorageComparer($this->contentStorageSync, $this->contentStorage);
     $change_list = [];
     $collections = $storage_comparer->getAllCollectionNames();
-    if (!empty($options['entity-types'])){
+    if (!empty($options['entity-types'])) {
       $entity_types = explode(',', $options['entity-types']);
       $match_collections = [];
-      foreach ($entity_types as $entity_type){
-        $match_collections = $match_collections + preg_grep('/^'.$entity_type.'/', $collections);
+      foreach ($entity_types as $entity_type) {
+        $match_collections = $match_collections + preg_grep('/^' . $entity_type . '/', $collections);
       }
       $collections = $match_collections;
     }
-    foreach ($collections as $collection){
-      if (!empty($options['uuids'])){
+
+    foreach ($collections as $collection) {
+      if (!empty($options['uuids'])) {
         $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
-      }else{
+      }
+      else {
         $storage_comparer->createChangelistbyCollection($collection);
       }
-      if (!empty($options['actions'])){
+      if (!empty($options['actions'])) {
         $actions = explode(',', $options['actions']);
-        foreach ($actions as $op){
-          if (in_array($op, ['create','update','delete'])){
+        foreach ($actions as $op) {
+          if (in_array($op, ['create', 'update', 'delete'])) {
             $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
           }
         }
-      }else{
+      }
+      else {
         $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
       }
       $change_list = array_map('array_filter', $change_list);
@@ -240,18 +298,21 @@ class ContentSyncCommands extends DrushCommands {
     unset($change_list['']);
 
     // Display the change list.
-    if (empty($options['skiplist'])){
+    if (empty($options['skiplist'])) {
       //Show differences
-      $this->output()->writeln("Differences of the export directory to the active content:\n");
+      $this->output()
+        ->writeln("Differences of the export directory to the active content:\n");
       // Print a table with changes in color.
       $table = self::contentChangesTable($change_list, $this->output());
       $table->render();
       // Ask to continue
-      if (!$this->io()->confirm(dt('Do you want to import?'))) {
+      if (!$this->io()
+        ->confirm(dt('Do you want to import?'))) {
         throw new UserAbortException();
       }
     }
-    //Process the Import Data
+
+    // Process import data.
     $content_to_sync = [];
     $content_to_delete = [];
     foreach ($change_list as $collection => $actions) {
@@ -273,7 +334,6 @@ class ContentSyncCommands extends DrushCommands {
       drush_backend_batch_process();
     }
   }
-
 
   /**
    * Export Drupal content to a directory.
@@ -302,34 +362,37 @@ class ContentSyncCommands extends DrushCommands {
     'actions' => '',
     'files' => '',
     'include-dependencies' => FALSE,
-    'skiplist' => FALSE ]) {
+    'skiplist' => FALSE,
+  ]) {
 
-    //Generate comparer with filters.
-    $storage_comparer = new ContentStorageComparer($this->contentStorage, $this->contentStorageSync, $this->configManager);
+    // Generate comparer with filters.
+    $storage_comparer = new ContentStorageComparer($this->contentStorage, $this->contentStorageSync);
     $change_list = [];
     $collections = $storage_comparer->getAllCollectionNames();
-    if (!empty($options['entity-types'])){
+    if (!empty($options['entity-types'])) {
       $entity_types = explode(',', $options['entity-types']);
       $match_collections = [];
-      foreach ($entity_types as $entity_type){
-        $match_collections = $match_collections + preg_grep('/^'.$entity_type.'/', $collections);
+      foreach ($entity_types as $entity_type) {
+        $match_collections = $match_collections + preg_grep('/^' . $entity_type . '/', $collections);
       }
       $collections = $match_collections;
     }
-    foreach ($collections as $collection){
-      if (!empty($options['uuids'])){
+    foreach ($collections as $collection) {
+      if (!empty($options['uuids'])) {
         $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
-      }else{
+      }
+      else {
         $storage_comparer->createChangelistbyCollection($collection);
       }
-      if (!empty($options['actions'])){
+      if (!empty($options['actions'])) {
         $actions = explode(',', $options['actions']);
-        foreach ($actions as $op){
-          if (in_array($op, ['create','update','delete'])){
+        foreach ($actions as $op) {
+          if (in_array($op, ['create', 'update', 'delete'])) {
             $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
           }
         }
-      }else{
+      }
+      else {
         $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
       }
       $change_list = array_map('array_filter', $change_list);
@@ -338,19 +401,21 @@ class ContentSyncCommands extends DrushCommands {
     unset($change_list['']);
 
     // Display the change list.
-    if (empty($options['skiplist'])){
-      //Show differences
-      $this->output()->writeln("Differences of the active content to the export directory:\n");
+    if (empty($options['skiplist'])) {
+      // Show differences.
+      $this->output()
+        ->writeln("Differences of the active content to the export directory:\n");
       // Print a table with changes in color.
       $table = self::contentChangesTable($change_list, $this->output());
       $table->render();
-      // Ask to continue
-      if (!$this->io()->confirm(dt('Do you want to export?'))) {
+      // Ask to continue.
+      if (!$this->io()
+        ->confirm(dt('Do you want to export?'))) {
         throw new UserAbortException();
       }
     }
 
-    //Process the Export.
+    // Process the Export.
     $entities_list = [];
     foreach ($change_list as $collection => $changes) {
       //$storage_comparer->getTargetStorage($collection)->deleteAll();
@@ -358,7 +423,8 @@ class ContentSyncCommands extends DrushCommands {
         switch ($change) {
           case 'delete':
             foreach ($contents as $content) {
-              $storage_comparer->getTargetStorage($collection)->delete($content);
+              $storage_comparer->getTargetStorage($collection)
+                ->delete($content);
             }
             break;
           case 'update':
@@ -376,15 +442,17 @@ class ContentSyncCommands extends DrushCommands {
         }
       }
     }
-    // Files options
+    // Files options.
     $include_files = self::processFilesOption($options);
 
-    // Set the Export Batch
+    // Set the Export Batch.
     if (!empty($entities_list)) {
       $batch = $this->generateExportBatch($entities_list,
-        ['export_type' => 'folder',
-         'include_files' => $include_files,
-         'include_dependencies' => $options['include-dependencies']]);
+        [
+          'export_type' => 'folder',
+          'include_files' => $include_files,
+          'include_dependencies' => $options['include-dependencies'],
+        ]);
       batch_set($batch);
       drush_backend_batch_process();
     }
@@ -406,41 +474,41 @@ class ContentSyncCommands extends DrushCommands {
   public static function contentChangesTable(array $content_changes, OutputInterface $output, $use_color = TRUE) {
     $rows = [];
     foreach ($content_changes as $collection => $changes) {
-      if(is_array($changes)){
-      foreach ($changes as $change => $contents) {
-        switch ($change) {
-          case 'delete':
-            $colour = '<fg=white;bg=red>';
-            break;
+      if (is_array($changes)) {
+        foreach ($changes as $change => $contents) {
+          switch ($change) {
+            case 'delete':
+              $colour = '<fg=white;bg=red>';
+              break;
 
-          case 'update':
-            $colour = '<fg=black;bg=yellow>';
-            break;
+            case 'update':
+              $colour = '<fg=black;bg=yellow>';
+              break;
 
-          case 'create':
-            $colour = '<fg=white;bg=green>';
-            break;
+            case 'create':
+              $colour = '<fg=white;bg=green>';
+              break;
 
-          default:
-            $colour = "<fg=black;bg=cyan>";
-            break;
-        }
-        if ($use_color) {
-          $prefix = $colour;
-          $suffix = '</>';
-        }
-        else {
-          $prefix = $suffix = '';
-        }
-        foreach ($contents as $content) {
-          $rows[] = [
-            $collection,
-            $content,
-            $prefix . ucfirst($change) . $suffix,
-          ];
+            default:
+              $colour = "<fg=black;bg=cyan>";
+              break;
+          }
+          if ($use_color) {
+            $prefix = $colour;
+            $suffix = '</>';
+          }
+          else {
+            $prefix = $suffix = '';
+          }
+          foreach ($contents as $content) {
+            $rows[] = [
+              $collection,
+              $content,
+              $prefix . ucfirst($change) . $suffix,
+            ];
+          }
         }
       }
-    }
     }
     $table = new Table($output);
     $table->setHeaders(['Collection', 'Content Name', 'Operation']);
@@ -461,4 +529,5 @@ class ContentSyncCommands extends DrushCommands {
     if (!in_array($include_files, ['folder', 'base64'])) $include_files = 'none';
     return $include_files;
   }
+
 }

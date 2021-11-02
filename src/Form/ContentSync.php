@@ -3,7 +3,6 @@
 namespace Drupal\content_sync\Form;
 
 use Drupal\content_sync\ContentSyncManagerInterface;
-use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Config\ConfigManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Config\StorageInterface;
