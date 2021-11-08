@@ -2,7 +2,6 @@
 
 namespace Drupal\content_sync\DependencyResolver;
 
-use Drupal\Core\Serialization\Yaml;
 use Drupal\content_sync\Content\ContentDatabaseStorage;
 
 /**
@@ -11,6 +10,31 @@ use Drupal\content_sync\Content\ContentDatabaseStorage;
  * @package Drupal\content_sync\DependencyResolver
  */
 class ExportQueueResolver implements ContentSyncResolverInterface {
+
+  /**
+   * The normalized data.
+   * @var array
+   */
+  protected $normalizedEntities;
+
+  /**
+   * Queue variable.
+   * @var array
+   */
+  protected $visited;
+
+  /**
+   * Constructs an ExportQueueResolver object.
+   *
+   * @param array $normalized_entities
+   *   The normalized data.
+   * @param array $visited
+   *   Queue variable.
+   */
+  public function __construct(array $normalized_entities, array $visited) {
+    $this->normalizedEntities = $normalized_entities;
+    $this->visited = [];
+  }
 
   /**
    * Builds a graph placing the deepest vertexes at the first place.
@@ -47,7 +71,7 @@ class ExportQueueResolver implements ContentSyncResolverInterface {
       }
 
       if (!isset($visited[$identifier])) {
-        list($entity_type_id, $bundle, $uuid) = explode('.', $identifier);
+        [$entity_type_id, $bundle, $uuid] = explode('.', $identifier);
         $visited[$identifier] = [
           'entity_type' => $entity_type_id,
           'entity_uuid' => $uuid,
@@ -88,13 +112,13 @@ class ExportQueueResolver implements ContentSyncResolverInterface {
    * @return array
    *   Queue to be processed within a batch process.
    */
-  public function resolve(array $normalized_entities, $visited = []) {
-    foreach ($normalized_entities as $identifier => $entity) {
-      $this->depthFirstSearch($visited, [$identifier], $normalized_entities);
+  public function resolve() {
+    foreach ($this->normalizedEntities as $identifier => $entity) {
+      $this->depthFirstSearch($this->visited, [$identifier], $this->normalizedEntities);
     }
 
     // Reverse the array to adjust it to an array_pop-driven iterator.
-    return array_reverse($visited);
+    return array_reverse($this->visited);
   }
 
 }

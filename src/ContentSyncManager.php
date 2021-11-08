@@ -95,8 +95,8 @@ class ContentSyncManager implements ContentSyncManagerInterface {
   public function generateExportQueue($decoded_entities, $visited) {
     $queue = [];
     if (!empty($decoded_entities)) {
-      $resolver = new ExportQueueResolver();
-      $queue = $resolver->resolve($decoded_entities, $visited);
+      $resolver = new ExportQueueResolver($decoded_entities, $visited);
+      $queue = $resolver->resolve();
     }
     return $queue;
   }
