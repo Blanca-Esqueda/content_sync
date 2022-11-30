@@ -14,11 +14,11 @@ class ContentStorageComparer extends StorageComparer {
   /**
    * {@inheritdoc}
    */
-  public function createChangelistbyCollection($collection) {
+  public function createChangelistbyCollection($collection, $use_dates = FALSE) {
     $this->changelist[$collection] = $this->getEmptyChangelist();
     $this->getAndSortConfigData($collection);
     $this->addChangelistCreate($collection);
-    $this->addChangelistUpdate($collection);
+    $use_dates ? $this->addChangelistUpdateByDate($collection) : $this->addChangelistUpdate($collection);
     $this->addChangelistDelete($collection);
     // Only collections that support configuration entities can have renames.
     if ($collection == StorageInterface::DEFAULT_COLLECTION) {
@@ -74,4 +74,37 @@ class ContentStorageComparer extends StorageComparer {
     }
     return false;
   }
+
+    /**
+     * Creates the update changelist with revision date comparison.
+     *
+     * The list of updates is sorted so that dependencies are created before
+     * configuration entities that depend on them. For example, field storages
+     * should be updated before fields.
+     *
+     * @param string $collection
+     *   The storage collection to operate on.
+     */
+    protected function addChangelistUpdateByDate($collection)
+    {
+        $recreates = [];
+        foreach (array_intersect($this->sourceNames[$collection], $this->targetNames[$collection]) as $name) {
+            $source_data = $this->getSourceStorage($collection)->read($name);
+            $target_data = $this->getTargetStorage($collection)->read($name);
+            if ($source_data !== $target_data) {
+                if (isset($source_data['uuid']) && $source_data['uuid'] !== $target_data['uuid']) {
+                    // The entity has the same file as an existing entity but the UUIDs do
+                    // not match. This means that the entity has been recreated so config
+                    // synchronization should do the same.
+                    $recreates[] = $name;
+                } else {
+                    if (strtotime($source_data['revision_timestamp'][count($source_data['revision_timestamp']) - 1]['value']) >
+                        strtotime($target_data['revision_timestamp'][count($target_data['revision_timestamp']) - 1]['value']))
+                    {
+                        $this->addChangeList($collection, 'update', [$name]);
+                    }
+                }
+            }
+        }
+    }
 }
