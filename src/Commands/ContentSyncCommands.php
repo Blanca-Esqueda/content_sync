@@ -204,7 +204,8 @@ class ContentSyncCommands extends DrushCommands {
     'entity-types' => '',
     'uuids' => '',
     'actions' => '',
-    'skiplist' => FALSE ]) {
+    'skiplist' => FALSE,
+    'compare-dates' ]) {
 
     //Generate comparer with filters.
     $storage_comparer = new ContentStorageComparer($this->contentStorageSync, $this->contentStorage,  $this->configManager);
@@ -221,7 +222,9 @@ class ContentSyncCommands extends DrushCommands {
     foreach ($collections as $collection){
       if (!empty($options['uuids'])){
         $storage_comparer->createChangelistbyCollectionAndNames($collection, $options['uuids']);
-      }else{
+      } elseif ($options['compare-dates']) {
+          $storage_comparer->createChangelistbyCollection($collection, TRUE);
+      } else {
         $storage_comparer->createChangelistbyCollection($collection);
       }
       if (!empty($options['actions'])){
