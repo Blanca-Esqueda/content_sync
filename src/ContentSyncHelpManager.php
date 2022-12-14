@@ -612,7 +612,7 @@ SUGGESTIONS
       ],
       'title' => $this->t('Content synchronization settings'),
       'url' => Url::fromRoute('content.settings'),
-      'content' => $this->t('Set specific settings for the content synchronization behaviour.'),
+      'content' => $this->t('Set specific settings for the content synchronization behavior.'),
       'menu' => TRUE,
     ];
 

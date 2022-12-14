@@ -21,7 +21,6 @@ class ContentSyncEvents implements EventSubscriberInterface {
    *   The Event to process.
    */
   public function onContentSyncCreate(EntityTypeEvent $event) {
-    kint($event);
     \Drupal::logger('content_sync')->notice("Create Event");
   }
 

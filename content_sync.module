@@ -62,7 +62,7 @@ function content_sync_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<dt>' . t('Content logs') . '</dt>';
       $output .= '<dd>' . t('You can view a chronological list of recorded events containing errors, warnings and operational information of the content import, export and synchronization on the <a href=":content-logs">Logs</a> page.', [':content-logs' => \Drupal::url('content.overview')]) . '</dd>';
       $output .= '<dt>' . t('Content synchronization settings') . '</dt>';
-      $output .= '<dd>' . t('You can set specific settings for the content synchronization behaviour as ignore the UUID Site validation and more on the <a href=":settings">Settings</a> page.', [':settings' => \Drupal::url('content.settings')]) . '</dd>';
+      $output .= '<dd>' . t('You can set specific settings for the content synchronization behavior as ignore the UUID Site validation and more on the <a href=":settings">Settings</a> page.', [':settings' => \Drupal::url('content.settings')]) . '</dd>';
       $output .= '</dl>';
 
       //return $output;
@@ -94,7 +94,7 @@ function content_sync_help($route_name, RouteMatchInterface $route_match) {
 
     case 'content.settings':
       $output = '';
-      $output .= '<p>' . t('Set specific settings for the content synchronization behaviour.') . '</p>';
+      $output .= '<p>' . t('Set specific settings for the content synchronization behavior.') . '</p>';
       return $output;
 
     case 'content.overview':

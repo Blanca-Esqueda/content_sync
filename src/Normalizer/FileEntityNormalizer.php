@@ -7,8 +7,6 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\EntityTypeRepositoryInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
-use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
-use Drupal\Core\Entity\EntityRepositoryInterface;
 use Drupal\Component\Render\FormattableMarkup;
 
 /**
@@ -44,8 +42,16 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
    *
    * @param \Drupal\Core\File\FileSystemInterface $file_system
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, EntityTypeRepositoryInterface $entity_type_repository, EntityFieldManagerInterface $entity_field_manager, EntityTypeBundleInfoInterface $entity_type_bundle_info, EntityRepositoryInterface $entity_repository, SyncNormalizerDecoratorManager $decorator_manager, FileSystemInterface $file_system) {
-    parent::__construct($entity_type_manager, $entity_type_repository, $entity_field_manager, $entity_type_bundle_info, $entity_repository, $decorator_manager);
+  public function __construct(
+      EntityTypeManagerInterface $entity_type_manager,
+      EntityTypeRepositoryInterface $entity_type_repository,
+      EntityFieldManagerInterface $entity_field_manager,
+      SyncNormalizerDecoratorManager $decorator_manager,
+      FileSystemInterface $file_system) {
+    parent::__construct($entity_type_manager,
+                        $entity_type_repository,
+                        $entity_field_manager,
+                        $decorator_manager);
     $this->fileSystem = $file_system;
   }
 
@@ -134,8 +140,13 @@ class FileEntityNormalizer extends ContentEntityNormalizer {
       $scheme = \Drupal::service('stream_wrapper_manager')->getScheme($uri);
       $destination = "{$serializer_context['content_sync_directory_files']}/{$scheme}/";
       $destination = str_replace($scheme . '://', $destination, $uri);
-      $this->fileSystem->prepareDirectory($this->fileSystem->dirname($destination), FileSystemInterface::CREATE_DIRECTORY);
-      $this->fileSystem->copy($uri, $destination, FileSystemInterface::EXISTS_REPLACE);
+      $prep_dir = $this->fileSystem->dirname($destination);
+      $this->fileSystem->prepareDirectory($prep_dir, FileSystemInterface::CREATE_DIRECTORY);
+      // Exception for when the file doesn't exist
+      // TODO: add a notice/log about it.
+      if (file_exists($uri)) {
+        $this->fileSystem->copy($uri, $destination, FileSystemInterface::EXISTS_REPLACE);
+      }
     }
 
     // Set base64-encoded file contents to the "data" property.

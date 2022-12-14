@@ -37,7 +37,6 @@ class ContentImporter implements ContentImporterInterface {
 
   public function importEntity($decoded_entity, $context = []) {
     $context = $this->context + $context;
-
     if (!empty($context['entity_type'])) {
       $entity_type_id = $context['entity_type'];
     }
@@ -46,11 +45,6 @@ class ContentImporter implements ContentImporterInterface {
     }
     else {
       return NULL;
-    }
-
-    // Replace a menu link to a node with an actual one.
-    if ($entity_type_id == 'menu_link_content' && !empty($decoded_entity["_content_sync"]["menu_entity_link"])) {
-      $decoded_entity = $this->alterMenuLink($decoded_entity);
     }
 
     $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
@@ -130,42 +124,6 @@ class ContentImporter implements ContentImporterInterface {
   }
 
   /**
-   * Replaces a link to a node with an actual one.
-   *
-   * @param array $decoded_entity
-   *   Array of entity values.
-   *
-   * @return array
-   *   Array of entity values with the link values changed.
-   */
-  protected function alterMenuLink(array $decoded_entity) {
-    $referenced_entity_uuid = reset($decoded_entity["_content_sync"]["menu_entity_link"]);
-    $referenced_entity_type = key($decoded_entity["_content_sync"]["menu_entity_link"]);
-    if (
-      !preg_match('/^internal:/', $decoded_entity["link"][0]["uri"])
-      && $referenced_entity = \Drupal::service('entity.repository')->loadEntityByUuid($referenced_entity_type, $referenced_entity_uuid)
-    ) {
-      $url = $referenced_entity->toUrl();
-      // Convert entity URIs to the entity scheme, if the path matches a route
-      // of the form "entity.$entity_type_id.canonical".
-      // @see \Drupal\Core\Url::fromEntityUri()
-      if ($url->isRouted()) {
-        $route_name = $url->getRouteName();
-        foreach (array_keys($this->entityTypeManager->getDefinitions()) as $entity_type_id) {
-          if ($route_name == "entity.{$entity_type_id}.canonical" && isset($url->getRouteParameters()[$entity_type_id])) {
-            $uri = "entity:{$entity_type_id}/" . $url->getRouteParameters()[$entity_type_id];
-          }
-        }
-      }else{
-        //$uri = $url->toUriString();
-        $uri = $url->getUri();
-      }
-      $decoded_entity["link"][0]["uri"] = $uri;
-    }
-    return $decoded_entity;
-  }
-
-  /**
    * @return string
    */
   public function getFormat() {
@@ -205,10 +163,17 @@ class ContentImporter implements ContentImporterInterface {
   protected function processSerializedFields($entity) {
     foreach ($entity->getTypedData() as $name => $field_items) {
       foreach ($field_items as $field_item) {
-        // The field to be stored in a serialized way.
-        if (!empty($this->getCustomSerializedPropertyNames($field_item))) {
-          $unserialized_value = $field_item->get('value')->getValue();
-          $entity->set($name, is_array($unserialized_value) ? serialize($unserialized_value) : $unserialized_value);
+        // Determine whether field has serialized properties,
+        // and if so, sanitize.
+        $serialized_property_names = $this->getCustomSerializedPropertyNames($field_item);
+        if (!empty($serialized_property_names)) {
+          $field_values = $field_item->getValue();
+          foreach ($serialized_property_names as $property_name) {
+            if(isset($field_values[$property_name])){
+              $field_values[$property_name] = (is_array($field_values[$property_name])) ? serialize($field_values[$property_name]) : $field_values[$property_name];
+            }
+          }
+          $entity->set($name, $field_values);
         }
       }
     }

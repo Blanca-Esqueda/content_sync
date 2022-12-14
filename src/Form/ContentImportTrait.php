@@ -2,15 +2,7 @@
 
 namespace Drupal\content_sync\Form;
 
-use Drupal\content_sync\ContentSyncManagerInterface;
 use Drupal\Core\Entity\EntityStorageException;
-use Drupal\Core\Config\ConfigManagerInterface;
-use Drupal\Core\Config\StorageInterface;
-use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Config\StorageComparer;
-use Drupal\Core\Url;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Entity\ContentEntityType;
 
 /**
  * Defines the content import form.
@@ -171,9 +163,9 @@ trait ContentImportTrait {
     }
     $context['results'][] = TRUE;
     $context['sandbox']['progress']++;
-    $context['message'] = $message;
 
-    if ($error) {
+    if (isset($error) && $error) {
+      $context['message'] = $message;
       if (!isset($context['results']['errors'])) {
         $context['results']['errors'] = [];
       }
