@@ -205,7 +205,7 @@ class ContentSyncCommands extends DrushCommands {
     'uuids' => '',
     'actions' => '',
     'skiplist' => FALSE,
-    'compare-dates' => FALSE ]) {
+    'compare-dates' ]) {
 
     //Generate comparer with filters.
     $storage_comparer = new ContentStorageComparer($this->contentStorageSync, $this->contentStorage,  $this->configManager);
@@ -305,8 +305,7 @@ class ContentSyncCommands extends DrushCommands {
     'actions' => '',
     'files' => '',
     'include-dependencies' => FALSE,
-    'skiplist' => FALSE,
-    'compare-dates' => FALSE ]) {
+    'skiplist' => FALSE ]) {
 
     //Generate comparer with filters.
     $storage_comparer = new ContentStorageComparer($this->contentStorage, $this->contentStorageSync, $this->configManager);
@@ -333,9 +332,7 @@ class ContentSyncCommands extends DrushCommands {
             $change_list[$collection][$op] = $storage_comparer->getChangelist($op, $collection);
           }
         }
-      } elseif ($options['compare-dates']) {
-          $storage_comparer->createChangelistbyCollection($collection, TRUE);
-      } else {
+      }else{
         $change_list[$collection] = $storage_comparer->getChangelist(NULL, $collection);
       }
       $change_list = array_map('array_filter', $change_list);
