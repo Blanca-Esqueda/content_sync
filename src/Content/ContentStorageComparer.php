@@ -98,8 +98,8 @@ class ContentStorageComparer extends StorageComparer {
                     // synchronization should do the same.
                     $recreates[] = $name;
                 } else {
-                    if (strtotime($source_data['revision_timestamp'][count($source_data['revision_timestamp']) - 1]['value']) >
-                        strtotime($target_data['revision_timestamp'][count($target_data['revision_timestamp']) - 1]['value']))
+                    if (strtotime($source_data['changed'][count($source_data['changed']) - 1]['value']) >
+                        strtotime($target_data['changed'][count($target_data['changed']) - 1]['value']))
                     {
                         $this->addChangeList($collection, 'update', [$name]);
                     }

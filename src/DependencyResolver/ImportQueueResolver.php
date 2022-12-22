@@ -112,7 +112,7 @@ class ImportQueueResolver implements ContentSyncResolverInterface {
       $entity = $this->getEntity($identifier, $this->normalizedEntities);
     }
     catch (\Exception $e) {
-      $entity = FALSE;
+      $entity = [];
       // TODO: notice/log of what entity is missing.
       // TODO: should the import of the parent entity abort?
     }
