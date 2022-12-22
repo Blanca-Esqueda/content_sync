@@ -97,6 +97,8 @@ class ContentStorageComparer extends StorageComparer {
                     // not match. This means that the entity has been recreated so config
                     // synchronization should do the same.
                     $recreates[] = $name;
+                } elseif (!array_key_exists('changed', $source_data) || !array_key_exists('changed', $target_data)) {
+                  $this->addChangeList($collection, 'update', [$name]);
                 } else {
                     if (strtotime($source_data['changed'][count($source_data['changed']) - 1]['value']) >
                         strtotime($target_data['changed'][count($target_data['changed']) - 1]['value']))
